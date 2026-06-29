@@ -163,7 +163,7 @@ body{font-family:'Nunito',sans-serif;background:#1a1a2e;color:#e0e0e0;height:100
 // ========== CONFIG ==========
 const COLS=8,ROWS=8,NUM_QUESTIONS=20,TOTAL_MYSTERY=NUM_QUESTIONS;
 const START={r:0,c:0},FINISH={r:7,c:7};
-const NUM_WALLS=20;
+const NUM_WALLS=12;
 
 const QUESTIONS=[
   {q:'Ai là người phát hiện ra tính hai mặt của lao động sản xuất hàng hóa?',a:'Adam Smith',b:'David Ricardo',c:'C. Mác',d:'T.J. Dunning',ans:'C'},
@@ -347,9 +347,22 @@ function hasValidPath(board){
   return false
 }
 
+function countReachable(board){
+  const q=[{r:0,c:0}],v=new Set();let count=0;
+  while(q.length){
+    const {r,c}=q.shift();const k=`${r},${c}`;
+    if(v.has(k))continue;v.add(k);count++;
+    for(const[dr,dc] of[[-1,0],[1,0],[0,-1],[0,1]]){
+      const nr=r+dr,nc=c+dc;
+      if(nr>=0&&nr<8&&nc>=0&&nc<8&&board[nr][nc].type!=='wall')q.push({r:nr,c:nc})
+    }
+  }
+  return count
+}
+
 function generateBoard(){
   let board;
-  for(let attempt=0;attempt<100;attempt++){
+  for(let attempt=0;attempt<200;attempt++){
     board=[];
     for(let r=0;r<8;r++){board[r]=[];for(let c=0;c<8;c++)board[r][c]={type:'empty',data:null}}
     board[0][0]={type:'start',data:null};board[7][7]={type:'finish',data:null};
@@ -362,7 +375,7 @@ function generateBoard(){
       if(r===0&&c===0||r===7&&c===7)continue;
       board[r][c]={type:'wall',data:null};placed++
     }
-    if(hasValidPath(board)){
+    if(hasValidPath(board)&&countReachable(board)>=35){
       const avail2=[];
       for(let r=0;r<8;r++)for(let c=0;c<8;c++)if(board[r][c].type==='empty')avail2.push([r,c]);
       shuffle(avail2);
@@ -371,12 +384,13 @@ function generateBoard(){
       for(let qi=0;qi<avail2.length&&placed<NUM_QUESTIONS;qi++){
         const[r,c]=avail2[qi];
         let adj=false;
-        for(const[dr,dc] of[[-1,0],[1,0],[0,-1],[0,1]])
-          if(r+dr>=0&&r+dr<8&&c+dc>=0&&c+dc<8&&board[r+dr][c+dc].type==='question'){adj=true;break}
-        if(!adj){
-          const isHelp=placed>=NUM_QUESTIONS-3;
-          board[r][c]={type:'question',data:{...qs[placed]},isHelp};placed++
+        for(const[dr,dc] of[[-1,0],[1,0],[0,-1],[0,1]]){
+          const nr=r+dr,nc=c+dc;
+          if(nr>=0&&nr<8&&nc>=0&&nc<8&&board[nr][nc].type==='question'){adj=true;break}
         }
+        if(adj)continue;
+        const isHelp=placed>=NUM_QUESTIONS-3;
+        board[r][c]={type:'question',data:{...qs[placed]},isHelp};placed++
       }
       return board
     }
@@ -498,7 +512,7 @@ function movePlayer(dr,dc){
   const nr=G.pos.r+dr,nc=G.pos.c+dc;
   if(nr<0||nr>=8||nc<0||nc>=8)return;
   const cell=G.board[nr][nc];
-  if(cell.type==='wall'){toast('🪨 Đường bị chặn!');return}
+  if(cell.type==='wall'){toast('🪨 Không thể đi đường này — bị chặn bởi tảng đá!',2500);return}
   G.prevPos={...G.pos};G.pos={r:nr,c:nc};G.moveCount++;
   const dir=dr===0?(dc>0?'right':'left'):(dr>0?'down':'up');
   setCharAnim(dir);
