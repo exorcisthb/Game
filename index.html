@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Treasure Hunt — Multiplayer Board Game</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Nunito',sans-serif;background:#1a1a2e;color:#e0e0e0;height:100vh;overflow:hidden}
+.screen{display:none!important}
+.screen.active{display:flex!important}
+@keyframes char-idle{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+@keyframes char-walk{0%,100%{transform:translateY(0) rotate(0)}25%{transform:translateY(-2px) rotate(-3deg)}75%{transform:translateY(-2px) rotate(3deg)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse-glow{0%,100%{box-shadow:0 0 8px rgba(139,92,246,.3)}50%{box-shadow:0 0 20px rgba(139,92,246,.5)}}
+.anim-idle{animation:char-idle 1s infinite}
+.anim-walk{animation:char-walk .3s ease}
+.anim-fade{animation:fadeIn .3s ease forwards}
+.anim-glow{animation:pulse-glow 2s infinite}
+#boardViewport{width:100%;max-width:100%;aspect-ratio:1;overflow:hidden;border-radius:12px;position:relative;background:#0d1117;border:2px solid #0f3460;touch-action:none}
+#boardGrid{display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);gap:1px;padding:1px;width:100%;height:100%}
+.cell{border-radius:3px;display:flex;align-items:center;justify-content:center;position:relative;font-size:clamp(1.2rem,6vw,3rem);transition:background .2s}
+.cell-empty{background:linear-gradient(135deg,#16213e,#1e2a4a)}
+.cell-even{background:linear-gradient(135deg,#16213e,#1e2a4a)}
+.cell-odd{background:linear-gradient(135deg,#0f3460,#1a3a6e)}
+.cell-start{background:linear-gradient(135deg,#059669,#10b981)}
+.cell-finish{background:linear-gradient(135deg,#f59e0b,#fbbf24);display:flex;align-items:center;justify-content:center}
+.cell-wall{background:linear-gradient(135deg,#2a2a3a,#1e1e2e);display:flex;align-items:center;justify-content:center}
+.cell-q{background:linear-gradient(135deg,#1a1040,#2d1b3e);border:2px solid #4a6cf7;box-shadow:inset 0 0 12px rgba(74,108,247,.25);display:flex;align-items:center;justify-content:center}
+.cell-player{z-index:5}
+#toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:50;background:rgba(22,33,62,.95);backdrop-filter:blur(12px);color:#e0e0e0;padding:10px 24px;border-radius:30px;font-size:.9rem;font-weight:600;border:1px solid #0f3460;box-shadow:0 4px 20px rgba(0,0,0,.4);transition:opacity .3s,transform .3s;opacity:0;pointer-events:none;white-space:nowrap}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.log-entry{padding:6px 10px;border-radius:8px;margin-bottom:4px;font-size:.8rem;animation:fadeIn .2s ease}
+.log-good{background:rgba(16,185,129,.15);border-left:3px solid #10b981}
+.log-bad{background:rgba(239,68,68,.15);border-left:3px solid #ef4444}
+.log-info{background:rgba(245,158,11,.1);border-left:3px solid #f59e0b}
+.log-power{background:rgba(139,92,246,.1);border-left:3px solid #8b5cf6}
+.progress-bar{height:10px;border-radius:5px;background:#374151;overflow:hidden}
+.progress-fill{height:100%;border-radius:5px;transition:width .5s ease}
+.modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);z-index:100;align-items:center;justify-content:center;padding:16px}
+.modal-overlay.active{display:flex}
+.modal-box{background:#16213e;border-radius:20px;padding:24px;max-width:400px;width:100%;border:1px solid #0f3460;box-shadow:0 8px 40px rgba(0,0,0,.5);max-height:90vh;overflow-y:auto}
+@media(max-width:480px){#boardViewport{border-radius:6px;border-width:1px}.cell{font-size:clamp(1rem,5vw,2rem);border-radius:2px}}
+@media(min-width:768px){#boardViewport{max-width:700px}}
+</style>
+</head>
+<body>
+
+<div id="toast"></div>
+
+<!-- ===== HOST SCREEN ===== -->
+<div id="host-screen" class="screen max-w-2xl mx-auto p-4 flex-col overflow-y-auto">
+  <div id="hostSetup" class="text-center pt-6">
+    <h1 class="text-3xl font-black text-yellow-400 mb-1">🗺️ Treasure Hunt</h1>
+    <p class="text-gray-400 text-sm mb-4">Dashboard Host — Quản lý trò chơi</p>
+    <div class="bg-gray-800/60 rounded-xl p-4 mb-4 border border-gray-700 text-left">
+      <h2 class="text-yellow-400 font-bold text-sm mb-3">👥 Người chơi đã kết nối</h2>
+      <div id="setupPlayerList" class="text-sm space-y-1 min-h-[2rem]"></div>
+      <button class="mt-4 w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-bold py-3 rounded-xl transition text-lg" onclick="startGame()">🚀 Bắt đầu</button>
+    </div>
+  </div>
+
+  <div id="hostDashboard" class="hidden">
+    <div class="flex items-center justify-between mb-3">
+      <h1 class="text-xl font-black text-yellow-400">🗺️ Dashboard</h1>
+      <button class="text-xs bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded-lg transition" onclick="resetGame()">🔄 Làm lại</button>
+    </div>
+    <div class="grid grid-cols-2 gap-3 mb-3">
+      <div class="bg-gray-800/60 rounded-xl p-3 border border-gray-700">
+        <h3 class="text-xs font-bold text-gray-400 uppercase mb-2">👤 Người chơi Online</h3>
+        <div id="playerList" class="text-sm space-y-1"></div>
+      </div>
+      <div class="bg-gray-800/60 rounded-xl p-3 border border-gray-700">
+        <h3 class="text-xs font-bold text-gray-400 uppercase mb-2">📜 Lịch sử sự kiện</h3>
+        <div id="eventLog" class="space-y-1 max-h-40 overflow-y-auto"></div>
+      </div>
+    </div>
+    <div id="teamProgress" class="space-y-2"></div>
+  </div>
+</div>
+
+<!-- ===== PLAYER SCREEN ===== -->
+<div id="player-screen" class="screen h-screen flex flex-col">
+  <div id="waitingOverlay" class="absolute inset-0 flex flex-col items-center justify-center bg-gray-900/95 z-30 rounded-xl" style="position:fixed;z-index:60">
+    <div class="text-5xl mb-4 animate-bounce">🎮</div>
+    <h2 class="text-yellow-400 font-bold text-xl mb-2">Đang chờ Host...</h2>
+    <div id="teamNameEditor" class="hidden mt-2">
+      <p class="text-xs text-gray-500 mb-1">Đặt tên cho đội của bạn:</p>
+      <input type="text" id="teamNameInput" maxlength="20" class="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-center text-gray-300 outline-none focus:border-yellow-400 w-56 text-sm" oninput="renameTeam(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();confirmTeamName()}">
+    </div>
+    <div id="confirmedTeamName" class="hidden mt-3 text-lg font-bold text-yellow-400"></div>
+    <div class="mt-3 text-xs text-gray-600">Đội <span id="myTeamNum"></span></div>
+  </div>
+
+  <div class="absolute top-2 left-2 z-20 bg-gray-900/85 border border-gray-700 rounded-xl px-3 py-2 text-left shadow-lg backdrop-blur-sm" style="pointer-events:none">
+    <div class="text-xs font-bold text-yellow-400 mb-0.5">🎮 Điều khiển</div>
+    <div class="text-[11px] text-gray-400">Di chuyển: ấn nút mũi tên<br>trên bàn phím<br>❓ Ấn ra ngoài: thu nhỏ, ấn lại để mở</div>
+  </div>
+
+  <div class="flex items-center justify-between px-2 py-1 bg-gray-900/80 shrink-0">
+    <div class="flex items-center gap-1.5">
+      <span id="playerTeamBadge" class="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full font-bold">Đội 1</span>
+      <span class="text-xs text-gray-500">Bước: <b id="moveCount" class="text-gray-300">0</b></span>
+      <span class="text-xs text-yellow-400">🏆 <b id="cupCount" class="text-yellow-300">0</b></span>
+    </div>
+    <div class="flex items-center gap-1.5">
+      <input type="text" id="playerNameInput" maxlength="20" class="bg-transparent border border-gray-700 rounded px-1.5 py-0.5 text-xs text-center text-gray-300 w-20 outline-none focus:border-yellow-400">
+      <button class="text-xs bg-gray-700 hover:bg-gray-600 px-1.5 py-0.5 rounded transition" onclick="resetGame()">🔄</button>
+    </div>
+  </div>
+
+  <div class="flex-1 flex items-center justify-center min-h-0">
+    <div id="boardViewport" class="shadow-xl relative">
+      <div id="questionMinimized" class="absolute top-1 right-1 z-10 hidden cursor-pointer bg-gray-800 border border-yellow-500 rounded-full w-7 h-7 flex items-center justify-center text-sm shadow-lg hover:bg-gray-700 transition" onclick="restoreQuestion()">❓</div>
+      <div id="boardGrid"></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="playerModal" onclick="if(event.target===this)minimizeQuestion()">
+    <div class="modal-box">
+      <div id="playerModalContent"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ROLE SELECTION ===== -->
+<div id="role-screen" class="screen active flex flex-col items-center justify-center min-h-screen p-6 text-center">
+  <h1 class="text-3xl font-black text-yellow-400 mb-2">🗺️ Treasure Hunt</h1>
+  <p class="text-gray-400 text-sm mb-6">Game truy tìm kho báu nhiều người chơi</p>
+  <button class="w-56 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-bold py-3 rounded-xl mb-3 transition" onclick="showPasswordModal()">🎮 Máy chủ (Host)</button>
+  <button class="w-56 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3 rounded-xl transition" onclick="showScreen('team-select-screen');initTeamSelect()">🎮 Người chơi</button>
+  <p class="text-gray-600 text-xs mt-4">Trên cùng máy? Mở nhiều tab trình duyệt.</p>
+</div>
+
+<!-- ===== TEAM SELECT ===== -->
+<div id="team-select-screen" class="screen flex flex-col items-center justify-center min-h-screen p-6 text-center">
+  <h1 class="text-2xl font-black text-yellow-400 mb-2">🎮 Chọn đội của bạn</h1>
+  <p class="text-gray-400 text-sm mb-4">Nhập tên và chọn số đội</p>
+  <input type="text" id="setupPlayerName" placeholder="Nhập tên của bạn..." maxlength="20" class="bg-gray-900 border border-gray-700 rounded-xl px-4 py-2.5 text-center text-gray-300 outline-none focus:border-yellow-400 w-56 mb-5">
+  <div id="teamSelectBtns" class="grid grid-cols-4 gap-2 w-full max-w-xs"></div>
+  <button class="mt-6 text-xs text-gray-600 hover:text-gray-400 transition" onclick="showScreen('role-screen')">← Quay lại</button>
+</div>
+
+<div class="modal-overlay" id="hostModal" onclick="if(event.target===this)closeHostModal()">
+  <div class="modal-box"><div id="hostModalContent"></div></div>
+</div>
+
+<div class="modal-overlay" id="passwordModal" onclick="if(event.target===this)closePasswordModal()">
+  <div class="modal-box text-center">
+    <h3 class="text-yellow-400 font-bold text-sm mb-3">🔒 Mật khẩu Host</h3>
+    <input type="password" id="hostPasswordInput" placeholder="Nhập mật khẩu..." maxlength="10" class="bg-gray-900 border border-gray-700 rounded-lg px-4 py-2.5 text-center text-gray-300 outline-none focus:border-yellow-400 w-full mb-3" onkeydown="if(event.key==='Enter')checkPassword()">
+    <p id="passwordError" class="text-red-400 text-xs mb-2 hidden">❌ Sai mật khẩu!</p>
+    <div class="flex gap-2">
+      <button class="flex-1 bg-gray-700 hover:bg-gray-600 text-white text-sm py-2 rounded-lg transition" onclick="closePasswordModal()">Hủy</button>
+      <button class="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white text-sm py-2 rounded-lg transition" onclick="checkPassword()">Xác nhận</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== CONFIG ==========
+const COLS=8,ROWS=8,NUM_QUESTIONS=20,TOTAL_MYSTERY=NUM_QUESTIONS;
+const START={r:0,c:0},FINISH={r:7,c:7};
+const NUM_WALLS=20;
+
+const QUESTIONS=[
+  {q:'Ai là người phát hiện ra tính hai mặt của lao động sản xuất hàng hóa?',a:'Adam Smith',b:'David Ricardo',c:'C. Mác',d:'T.J. Dunning',ans:'C'},
+  {q:'Lao động cụ thể tạo ra thuộc tính nào của hàng hóa?',a:'Giá trị',b:'Giá trị sử dụng',c:'Giá trị trao đổi',d:'Lợi nhuận',ans:'B'},
+  {q:'Lao động trừu tượng tạo ra thuộc tính nào của hàng hóa?',a:'Công dụng',b:'Giá trị sử dụng',c:'Giá trị',d:'Hình thái',ans:'C'},
+  {q:'Lượng giá trị của một đơn vị hàng hóa được đo bằng thước đo nào?',a:'Số lượng máy móc sử dụng',b:'Tiền lương trả cho công nhân',c:'Thời gian lao động xã hội cần thiết',d:'Giá cả trên thị trường',ans:'C'},
+  {q:'Cấu thành lượng giá trị hàng hóa bao gồm những bộ phận nào?',a:'Hao phí lao động quá khứ và hao phí lao động mới',b:'Tiền lương và tiền thưởng',c:'Chi phí sản xuất và lợi nhuận',d:'Giá trị sử dụng và giá trị trao đổi',ans:'A'},
+  {q:'Giá trị của các yếu tố vật tư, máy móc dịch chuyển vào sản phẩm mới được gọi là:',a:'Lao động sống',b:'Hao phí lao động quá khứ',c:'Giá trị thặng dư',d:'Lợi nhuận',ans:'B'},
+  {q:'Giá trị thặng dư (m) được tạo ra trong lĩnh vực nào?',a:'Lưu thông',b:'Trao đổi',c:'Sản xuất',d:'Tiêu dùng',ans:'C'},
+  {q:'Bản chất của giá trị thặng dư là gì?',a:'Phần tiền thưởng cho nhà tư bản',b:'Phần lao động không công của công nhân bị chiếm đoạt',c:'Kết quả của việc mua rẻ bán đắt',d:'Do máy móc tự sinh ra',ans:'B'},
+  {q:'Lợi nhuận (p) được định nghĩa là:',a:'Hình thái biến tướng của giá trị thặng dư',b:'Tổng chi phí sản xuất',c:'Tiền lương trả cho công nhân',d:'Giá trị sử dụng của hàng hóa',ans:'A'},
+  {q:'Theo C. Mác, lợi nhuận xuất hiện dưới hình thái nào trên bề mặt xã hội?',a:'Quan hệ bóc lột',b:'Lao động trừu tượng',c:'Một khoản "tiền thưởng" của mua bán, lưu thông',d:'Giá trị thặng dư siêu ngạch',ans:'C'},
+  {q:'Khi Cung = Cầu, mối quan hệ giữa Lợi nhuận (p) và Giá trị thặng dư (m) là:',a:'p>m',b:'p<m',c:'p=m',d:'Không có quan hệ',ans:'C'},
+  {q:'Khi Cung < Cầu, nhà tư bản bán hàng hóa cao hơn giá trị thì:',a:'p>m',b:'p<m',c:'p=m',d:'p=0',ans:'A'},
+  {q:'Khi Cung > Cầu, nhà tư bản bán hàng hóa thấp hơn giá trị thì:',a:'p>m',b:'p<m',c:'p=m',d:'p=0',ans:'B'},
+  {q:'Trên phạm vi toàn xã hội, tổng lợi nhuận luôn như thế nào với tổng giá trị thặng dư?',a:'Lớn hơn',b:'Nhỏ hơn',c:'Bằng nhau',d:'Gấp đôi',ans:'C'},
+  {q:'Phạm trù nào che đậy mối quan hệ bóc lột giữa tư bản và lao động?',a:'Giá trị thặng dư',b:'Lợi nhuận',c:'Lao động cụ thể',d:'Giá trị sử dụng',ans:'B'},
+  {q:'Câu nói "Với 300% lợi nhuận, nó sẵn sàng phạm bất cứ tội lỗi nào" là của ai?',a:'C. Mác',b:'T.J. Dunning',c:'Lênin',d:'Ăng-ghen',ans:'B'},
+  {q:'Động cơ cốt lõi của chủ nghĩa tư bản là gì?',a:'Phục vụ nhân dân',b:'Lợi nhuận',c:'Phát triển văn hóa',d:'Bảo vệ môi trường',ans:'B'},
+  {q:'Sự giàu có chân chính của một xã hội theo học thuyết Mác phải dựa trên:',a:'Đầu cơ bất động sản',b:'Thao túng giá cả',c:'Một nền sản xuất có thực',d:'Các sản phẩm phái sinh',ans:'C'},
+  {q:'Lợi nhuận có vai trò gì trong nền kinh tế thị trường định hướng XHCN tại Việt Nam?',a:'Là công cụ bóc lột duy nhất',b:'Là động lực kích thích cải tiến kỹ thuật, tăng năng suất',c:'Không có vai trò gì',d:'Cần phải triệt tiêu hoàn toàn',ans:'B'},
+  {q:'Điểm khác biệt về "vị trí" giữa m và p là:',a:'m ở lưu thông, p ở sản xuất',b:'m ở sản xuất, p ở lưu thông',c:'Cả hai đều ở sản xuất',d:'Cả hai đều ở lưu thông',ans:'B'},
+  {q:'Theo C. Mác, sự hao phí sức lao động nói chung được gọi là gì?',a:'Lao động cụ thể',b:'Lao động trừu tượng',c:'Lao động giản đơn',d:'Lao động phức tạp',ans:'B'},
+  {q:'Lao động cụ thể là nguồn gốc tạo ra thuộc tính nào sau đây?',a:'Giá trị của hàng hóa',b:'Giá trị trao đổi',c:'Giá trị sử dụng (công dụng)',d:'Giá trị thặng dư',ans:'C'},
+  {q:'Thành phần nào sau đây thuộc về "Hao phí lao động quá khứ"?',a:'Tiền lương trả cho công nhân',b:'Giá trị vật tư, nguyên liệu, máy móc tiêu dùng',c:'Giá trị thặng dư tạo ra thêm',d:'Sức lao động của người công nhân',ans:'B'},
+  {q:'Giá trị của một đơn vị hàng hóa được cấu thành từ những bộ phận nào?',a:'Chỉ gồm tiền lương của công nhân',b:'Chỉ gồm chi phí máy móc',c:'Lao động quá khứ và lao động mới kết tinh thêm',d:'Lợi nhuận và tiền thuế',ans:'C'},
+  {q:'Tại sao nhà tư bản thu được giá trị thặng dư?',a:'Vì họ có tài kinh doanh',b:'Vì họ kéo dài thời gian lao động vượt mức thời gian cần thiết',c:'Vì máy móc tự tạo ra giá trị mới',d:'Vì họ bán hàng cao hơn giá trị',ans:'B'},
+  {q:'"Thời gian lao động cần thiết" là khoảng thời gian để công nhân làm gì?',a:'Tạo ra lợi nhuận cho nhà tư bản',b:'Bù đắp lại giá trị sức lao động (tiền lương) của chính họ',c:'Sản xuất xong một sản phẩm bất kỳ',d:'Nghỉ ngơi giữa ca làm việc',ans:'B'},
+  {q:'Giá trị thặng dư phản ánh mối quan hệ bản chất giữa các giai cấp nào?',a:'Nông dân và Địa chủ',b:'Chủ nô và Nô lệ',c:'Tư sản và Công nhân',d:'Thương nhân và Người tiêu dùng',ans:'C'},
+  {q:'Khi hàng hóa được bán ngang với giá trị, phát biểu nào sau đây đúng?',a:'p>m',b:'p<m',c:'p=m',d:'p=0',ans:'C'},
+  {q:'Theo quan điểm của nhà tư bản trên bề mặt kinh tế, lợi nhuận được coi là gì?',a:'Phần lao động không công của công nhân',b:'Khoản "tiền thưởng" do mua bán, lưu thông mang lại',c:'Giá trị trừu tượng của hàng hóa',d:'Chi phí sản xuất thực tế',ans:'B'},
+  {q:'Sự khác biệt lớn nhất về "vị trí" giữa m và p là gì?',a:'m tạo ra ở lưu thông, p tạo ra ở sản xuất',b:'m tạo ra ở sản xuất, p được hiện thực hóa ở lưu thông',c:'Cả hai đều tạo ra ở khâu tiêu dùng',d:'Cả hai không có mối liên hệ nào',ans:'B'},
+  {q:'Tại sao nói Lợi nhuận che đậy bản chất bóc lột của Giá trị thặng dư?',a:'Vì nó làm người ta lầm tưởng tiền tự sinh ra tiền',b:'Vì lợi nhuận luôn nhỏ hơn giá trị thặng dư',c:'Vì lợi nhuận chỉ dành cho công nhân',d:'Vì lợi nhuận không thể đo lường được',ans:'A'},
+  {q:'Trong trường hợp Cung > Cầu, nhà tư bản sẽ thu được:',a:'p=m',b:'p>m',c:'p<m',d:'Không thu được gì',ans:'C'},
+  {q:'Trên phạm vi toàn xã hội, tổng lợi nhuận quan hệ thế nào với tổng giá trị thặng dư?',a:'Luôn lớn hơn do có thuế',b:'Luôn nhỏ hơn do hao hụt',c:'Luôn bằng nhau',d:'Không thể so sánh',ans:'C'},
+  {q:'Theo C. Mác, sự giàu có chân chính phải dựa trên:',a:'Các hoạt động đầu cơ bất động sản',b:'Một nền sản xuất có thực với lao động sống sáng tạo',c:'Việc thao túng giá cả thị trường',d:'Việc mua bán các tài sản phái sinh',ans:'B'},
+  {q:'Nhận định "Với 300% lợi nhuận, tư bản sẵn sàng phạm bất cứ tội lỗi nào" nhấn mạnh điều gì?',a:'Lợi nhuận là động lực thúc đẩy đạo đức',b:'Bản chất tàn nhẫn và sức chi phối khủng khiếp của mục tiêu lợi nhuận',c:'Tư bản luôn tuân thủ pháp luật',d:'Lợi nhuận không quan trọng bằng uy tín',ans:'B'},
+  {q:'Trong kinh tế thị trường định hướng XHCN tại Việt Nam, lợi nhuận có vai trò gì?',a:'Là yếu tố cần loại bỏ hoàn toàn',b:'Là động lực kích thích cải tiến kỹ thuật và tăng năng suất',c:'Là nguồn gốc duy nhất của sự bất công',d:'Không có ảnh hưởng đến nền kinh tế',ans:'B'},
+  {q:'Chi phí sản xuất của nhà tư bản bao gồm những gì?',a:'Chỉ gồm tiền nguyên liệu',b:'Tiền mua tư liệu sản xuất và tiền thuê sức lao động',c:'Chỉ gồm tiền lương trả cho công nhân',d:'Tổng giá trị thặng dư dự kiến',ans:'B'},
+  {q:'Lao động nào là "nội dung", là "cơ sở khách quan" tạo ra giá trị hàng hóa?',a:'Lao động cụ thể',b:'Lao động trừu tượng',c:'Lao động giản đơn',d:'Lao động quá khứ',ans:'B'},
+  {q:'Hình thái hiện tượng bên ngoài của giá trị thặng dư được gọi là gì?',a:'Giá trị sử dụng',b:'Tiền lương',c:'Lợi nhuận',d:'Chi phí vật tư',ans:'C'},
+  {q:'Khi nhà tư bản bán hàng hóa cao hơn giá trị thì:',a:'p=m',b:'p<m',c:'p>m',d:'p=0',ans:'C'},
+  {q:'Ai là tác giả của tác phẩm "Tư bản" (Das Kapital)?',a:'Adam Smith',b:'David Ricardo',c:'C. Mác',d:'T.J. Dunning',ans:'C'},
+  {q:'"Hao phí lao động mới" do ai tạo ra?',a:'Máy móc thiết bị',b:'Người lao động sống trong quá trình sản xuất',c:'Nhà tư bản khi quản lý',d:'Các yếu tố nguyên liệu tự nhiên',ans:'B'},
+  {q:'Giá trị thặng dư là phần lao động:',a:'Có công của nhà tư bản',b:'Không công của công nhân bị chiếm đoạt',c:'Được trả lương đầy đủ',d:'Do lưu thông tạo ra',ans:'B'},
+  {q:'Phạm trù nào là "tấm màn ảo ảnh" che giấu nguồn gốc lao động không công?',a:'Giá trị hàng hóa',b:'Lợi nhuận',c:'Lao động cụ thể',d:'Giá trị sử dụng',ans:'B'},
+  {q:'Yếu tố nào làm cho Lợi nhuận biến động xung quanh Giá trị thặng dư?',a:'Trình độ tay nghề của công nhân',b:'Quan hệ cung - cầu và giá cả thị trường',c:'Sự thay đổi của máy móc',d:'Ý chí của nhà tư bản',ans:'B'},
+  {q:'Lao động trừu tượng kết tinh lại tạo thành:',a:'Công dụng của sản phẩm',b:'Giá trị của hàng hóa',c:'Hình dáng của hàng hóa',d:'Tên gọi của hàng hóa',ans:'B'},
+  {q:'Nhà tư bản thu được p>m khi nào?',a:'Bán đúng giá trị',b:'Bán thấp hơn giá trị',c:'Bán cao hơn giá trị',d:'Không bao giờ thu được',ans:'C'},
+  {q:'Giá trị thặng dư (m) là một đại lượng:',a:'Luôn biến động theo giá cả',b:'Khách quan, cố định dựa trên lượng lao động không công kết tinh',c:'Do người tiêu dùng quyết định',d:'Phụ thuộc vào tài quảng cáo',ans:'B'},
+  {q:'T.J. Dunning cho rằng tư bản sẵn sàng bị treo cổ ở mức lợi nhuận bao nhiêu?',a:'100%',b:'200%',c:'300%',d:'500%',ans:'C'},
+  {q:'Theo bài thuyết trình, sự giàu có bền vững KHÔNG nên dựa trên:',a:'Cải tiến kỹ thuật',b:'Nền sản xuất thực',c:'Thao túng giá cả thị trường và đầu cơ',d:'Tăng năng suất lao động',ans:'C'},
+  {q:'Theo T.J. Dunning, mức lợi nhuận nào khiến tư bản "hành động bất chấp tội ác"?',a:'50%',b:'100%',c:'200%',d:'300%',ans:'C'},
+  {q:'T.J. Dunning cho rằng với mức lợi nhuận 100%, tư bản sẽ làm gì?',a:'Sẵn sàng bị treo cổ',b:'Chà đạp lên mọi luật lệ',c:'Hoạt động từ thiện',d:'Cải tiến kỹ thuật',ans:'B'},
+  {q:'Học thuyết nào là phát hiện vĩ đại nhất của C. Mác để vạch trần bản chất chủ nghĩa tư bản?',a:'Học thuyết về các hình thái kinh tế',b:'Học thuyết Giá trị thặng dư',c:'Học thuyết về tôn giáo',d:'Học thuyết về phân chia giai cấp',ans:'B'},
+  {q:'Lao động cụ thể tạo ra thuộc tính nào của hàng hóa?',a:'Giá trị',b:'Giá trị sử dụng',c:'Giá trị trao đổi',d:'Giá trị thặng dư',ans:'B'},
+  {q:'Lao động trừu tượng là gì?',a:'Lao động của người thợ may',b:'Sự hao phí sức lao động nói chung (cơ bắp, thần kinh, trí óc)',c:'Lao động tạo ra công dụng của cái áo',d:'Lao động không có mục đích',ans:'B'},
+  {q:'Lượng giá trị của một đơn vị hàng hóa được đo bằng thước đo nào?',a:'Thời gian lao động cá biệt',b:'Thời gian lao động xã hội cần thiết',c:'Số lượng nguyên liệu tiêu hao',d:'Giá niêm yết trên thị trường',ans:'B'},
+  {q:'"Hao phí lao động quá khứ" bao gồm những yếu tố nào?',a:'Tiền lương công nhân',b:'Giá trị vật tư, nhiên liệu, máy móc tiêu dùng',c:'Lợi nhuận của nhà tư bản',d:'Giá trị thặng dư siêu ngạch',ans:'B'},
+  {q:'"Hao phí lao động mới" do đối tượng nào tạo ra?',a:'Máy móc tự động',b:'Người lao động sống trong quá trình sản xuất',c:'Nhà đầu tư khi bỏ vốn',d:'Người tiêu dùng khi mua hàng',ans:'B'},
+  {q:'Giá trị thặng dư (m) là phần lao động mới kết tinh thêm ngoài mức nào?',a:'Mức thuế phải nộp',b:'Mức thù lao (tiền lương) của công nhân',c:'Mức khấu hao máy móc',d:'Mức giá cả thị trường',ans:'B'},
+  {q:'Bản chất của giá trị thặng dư phản ánh mối quan hệ giữa:',a:'Người mua và Người bán',b:'Giai cấp tư sản và Giai cấp công nhân',c:'Nhà nước và Doanh nghiệp',d:'Nông dân và Thương nhân',ans:'B'},
+  {q:'Theo C. Mác, lợi nhuận (p) chẳng qua chỉ là gì?',a:'Tiền thưởng từ ngân hàng',b:'Hình thái biến tướng của giá trị thặng dư',c:'Chi phí sản xuất hàng hóa',d:'Tiền công quản lý của nhà tư bản',ans:'B'},
+  {q:'Nhà tư bản thu được lợi nhuận khi bán hàng hóa ở mức giá nào?',a:'Thấp hơn chi phí sản xuất',b:'Ngang giá trị hoặc cao hơn giá trị',c:'Bằng với tiền lương trả cho công nhân',d:'Bằng 0',ans:'B'},
+  {q:'Trên bề mặt nền kinh tế thị trường, lợi nhuận xuất hiện như một khoản gì?',a:'Khoản nợ của xã hội',b:'Khoản "tiền thưởng" của việc mua bán, lưu thông',c:'Phần đóng góp cho công nhân',d:'Chi phí bảo trì máy móc',ans:'B'},
+  {q:'Điểm khác biệt về bản chất giữa m và p là gì?',a:'m là hiện tượng, p là bản chất',b:'m là bản chất bên trong, p là hình thái hiện tượng bên ngoài',c:'Cả hai đều là bản chất bên trong',d:'Không có sự khác biệt',ans:'B'},
+  {q:'Phạm trù nào làm người ta lầm tưởng "tiền tự sinh ra tiền"?',a:'Giá trị thặng dư',b:'Lợi nhuận',c:'Lao động cụ thể',d:'Giá trị sử dụng',ans:'B'},
+  {q:'Giá trị thặng dư (m) được tạo ra duy nhất trong lĩnh vực nào?',a:'Lưu thông',b:'Sản xuất',c:'Tiêu dùng',d:'Phân phối',ans:'B'},
+  {q:'Lợi nhuận (p) được hiện thực hóa trong lĩnh vực nào?',a:'Sản xuất',b:'Lưu thông (thị trường)',c:'Trong nhà kho',d:'Trong ý tưởng của nhà tư bản',ans:'B'},
+  {q:'Quan hệ về lượng giữa p và p phụ thuộc vào yếu tố nào?',a:'Trình độ học vấn của công nhân',b:'Quan hệ cung - cầu và giá cả thị trường',c:'Độ bền của máy móc',d:'Thời tiết và khí hậu',ans:'B'},
+  {q:'Khi Cung = Cầu, giá cả bằng giá trị thì:',a:'p>m',b:'p<m',c:'p=m',d:'p=0',ans:'C'},
+  {q:'Khi Cung > Cầu, nhà tư bản bán hàng thấp hơn giá trị thì:',a:'p>m',b:'p<m',c:'p=m',d:'Không có lợi nhuận',ans:'B'},
+  {q:'Khi Cung < Cầu, giá cả cao hơn giá trị thì:',a:'p>m',b:'p<m',c:'p=m',d:'p không đổi',ans:'A'},
+  {q:'Xét trên phạm vi toàn xã hội, tổng lợi nhuận quan hệ thế nào với tổng giá trị thặng dư?',a:'Tổng p lớn hơn Tổng m',b:'Tổng p nhỏ hơn Tổng m',c:'Tổng p luôn bằng Tổng m',d:'Tổng p gấp đôi Tổng m',ans:'C'},
+  {q:'Lợi nhuận được ví như cái gì để che giấu nguồn gốc lao động không công?',a:'Một ngọn đèn sáng',b:'Một tấm màn ảo ảnh',c:'Một thước đo chính xác',d:'Một động cơ vĩnh cửu',ans:'B'},
+  {q:'Trong nền kinh tế thị trường XHCN ở Việt Nam, lợi nhuận được thừa nhận là:',a:'Yếu tố gây kìm hãm sản xuất',b:'Động lực mạnh mẽ kích thích cải tiến kỹ thuật',c:'Nguyên nhân duy nhất gây lạm phát',d:'Công cụ để xóa bỏ sản xuất',ans:'B'},
+  {q:'Một quốc gia giàu có bền vững KHÔNG nên chỉ dựa vào:',a:'Sản xuất thực',b:'Đầu cơ và thao túng giá cả thị trường',c:'Tăng năng suất lao động',d:'Sáng tạo giá trị mới',ans:'B'},
+  {q:'Sự giàu có chân chính của một xã hội phải dựa trên yếu tố nào?',a:'Số lượng tiền mặt in ra',b:'Một nền sản xuất có thực',c:'Việc mua bán các tài sản phái sinh',d:'Sự biến động của sàn chứng khoán',ans:'B'},
+  {q:'Lao động sống kết tinh nên những giá trị mới được gọi là:',a:'Lao động quá khứ',b:'Lao động sáng tạo',c:'Lao động cụ thể tạo giá trị',d:'Lao động không mục đích',ans:'B'},
+  {q:'Chi phí thực tế bằng tiền để mua tư liệu sản xuất và sức lao động được gọi là gì?',a:'Giá trị thặng dư',b:'Chi phí sản xuất',c:'Lợi nhuận ròng',d:'Giá trị sử dụng',ans:'B'},
+  {q:'Tại sao nhà tư bản quan tâm đến lợi nhuận hơn giá trị thặng dư?',a:'Vì lợi nhuận dễ tính hơn',b:'Vì lợi nhuận là hình thức biểu hiện trực tiếp tiền thu về trong lưu thông',c:'Vì họ không biết đến giá trị thặng dư',d:'Vì lợi nhuận luôn lớn hơn giá trị thặng dư',ans:'B'},
+  {q:'"Giá trị thặng dư là nội dung, là cơ sở khách quan" còn "Lợi nhuận là..."?',a:'Bản chất',b:'Hình thức biểu hiện ra bên ngoài',c:'Kết quả không liên quan',d:'Chi phí phát sinh',ans:'B'},
+  {q:'Ai là người trích dẫn nhận định của T.J. Dunning trong "Tư bản"?',a:'V.I. Lênin',b:'C. Mác',c:'Ph. Ăng-ghen',d:'Adam Smith',ans:'B'},
+  {q:'Lao động của người sản xuất hàng hóa có tính chất:',a:'Một mặt',b:'Hai mặt (lao động cụ thể và lao động trừu tượng)',c:'Ba mặt',d:'Không có tính chất gì',ans:'B'},
+  {q:'Lao động cụ thể phản ánh thuộc tính gì của lao động?',a:'Thuộc tính xã hội',b:'Thuộc tính tự nhiên, kỹ thuật (hình thức chuyên môn)',c:'Thuộc tính kinh tế',d:'Thuộc tính trừu tượng',ans:'B'},
+  {q:'Phần giá trị vật tư, máy móc đã tiêu dùng được gọi là:',a:'Giá trị mới',b:'Giá trị cũ (lao động quá khứ)',c:'Giá trị thặng dư',d:'Giá trị trao đổi',ans:'B'},
+  {q:'Nhà tư bản chiếm đoạt phần nào của công nhân?',a:'Phần lao động cần thiết',b:'Phần lao động không công (giá trị thặng dư)',c:'Toàn bộ tài sản cá nhân',d:'Công cụ lao động của công nhân',ans:'B'},
+  {q:'Lợi nhuận (p) thường xuyên biến động quanh m là do:',a:'Sự thay đổi của máy móc',b:'Quan hệ cung - cầu và giá cả',c:'Ý muốn chủ quan của nhà tư bản',d:'Thuế suất của nhà nước',ans:'B'},
+  {q:'Khi bán hàng hóa cao hơn giá trị, nhà tư bản thu được:',a:'p=m',b:'p>m',c:'p<m',d:'p=0',ans:'B'},
+  {q:'"Tấm màn ảo ảnh" che giấu sự bóc lột nói về phạm trù nào?',a:'Giá trị',b:'Lợi nhuận',c:'Sức lao động',d:'Tiền lương',ans:'B'},
+  {q:'Mục tiêu cốt lõi của chủ nghĩa tư bản là gì?',a:'Phát triển giáo dục',b:'Thu lợi nhuận tối đa',c:'Bảo vệ môi trường',d:'Xây dựng công bằng xã hội',ans:'B'},
+  {q:'Thành phần nào tạo ra "Giá trị" của hàng hóa?',a:'Lao động cụ thể',b:'Lao động trừu tượng',c:'Máy móc hiện đại',d:'Địa điểm bán hàng',ans:'B'},
+  {q:'Giá trị thặng dư được đo lường dựa trên đại lượng nào?',a:'Sự hài lòng của khách hàng',b:'Lượng lao động không công đã kết tinh',c:'Số lượng tiền mặt trong két sắt',d:'Giá cổ phiếu trên sàn',ans:'B'},
+  {q:'Phạm trù nào thuộc lĩnh vực sản xuất?',a:'Lợi nhuận (p)',b:'Giá trị thặng dư (m)',c:'Giá cả thị trường',d:'Phí lưu thông',ans:'B'},
+  {q:'"Tổng giá cả luôn bằng tổng giá trị" dẫn đến kết luận nào?',a:'Tổng p luôn lớn hơn tổng m',b:'Tổng p luôn bằng tổng m',c:'Tổng p luôn nhỏ hơn tổng m',d:'Không có kết luận nào',ans:'B'},
+  {q:'Lợi nhuận xuất hiện làm người ta lầm tưởng cái gì tạo ra giá trị?',a:'Lao động của công nhân',b:'Tài buôn bán hoặc tiền tự đẻ ra tiền',c:'Nguyên liệu thô',d:'Chính sách của nhà nước',ans:'B'},
+  {q:'Nhận định nào ĐÚNG về giá trị thặng dư?',a:'Nó là phần thưởng cho sự rủi ro',b:'Nó là kết quả của việc mua rẻ bán đắt',c:'Nó là lao động không công của công nhân bị chiếm đoạt',d:'Nó do máy móc tạo ra',ans:'C'},
+  {q:'Sự chênh lệch dương giữa giá bán và chi phí sản xuất được gọi là:',a:'Tiền lương',b:'Lợi nhuận',c:'Thuế',d:'Khấu hao',ans:'B'},
+  {q:'"Lao động sống không ngừng sáng tạo" tạo ra cái gì cho nhân loại?',a:'Các khoản nợ',b:'Những giá trị mới',c:'Sự lười biếng',d:'Các cuộc khủng hoảng',ans:'B'},
+  {q:'Học thuyết Mác nhắc nhở sự giàu có bền vững dựa trên:',a:'Đầu cơ bất động sản',b:'Một nền sản xuất có thực',c:'Thao túng thị trường vàng',d:'In thêm tiền giấy',ans:'B'},
+  {q:'Khi nhà tư bản bán đúng giá trị hàng hóa, thì họ:',a:'Không có lãi',b:'Thu được lợi nhuận bằng giá trị thặng dư',b:'Bị lỗ vốn',d:'Chỉ thu hồi được tiền lương',ans:'B'},
+  {q:'Bản chất thực sự của lợi nhuận là gì?',a:'Là sự sáng tạo của nhà tư bản',b:'Là hình thái biến tướng của giá trị thặng dư',c:'Là kết quả của may mắn',d:'Là sự đóng góp của người tiêu dùng',ans:'B'}
+];
+
+// ========== STATE ==========
+let G={
+  phase:'setup',board:[],teams:[],teamPositions:{},teamMoveCount:{},teamProgress:{},
+  connectedPlayers:[],currentPlayerIndex:0,currentTarget:null,currentCell:null,
+  pos:{r:0,c:0},prevPos:null,moveCount:0,eventLog:[],
+  filterActive:false,fiftyFiftyCount:0,teamCaptains:{},teamNames:{},cups:0,teamCups:{},
+  hostRole:false,myTeamId:0,myPlayerName:'',isCaptain:false,charAnimTimeout:null,touchStart:null,
+  questionMinimized:false,questionData:null,questionAnswers:null
+};
+const channel=new BroadcastChannel('treasure-hunt');
+
+// ========== SESSION PERSISTENCE ==========
+function saveSession(){
+  try{
+    if(G.hostRole){
+      const data={phase:G.phase,board:G.board,teams:G.teams,teamNames:G.teamNames,teamCaptains:G.teamCaptains,connectedPlayers:G.connectedPlayers,teamCups:G.teamCups,eventLog:G.eventLog.slice(0,20)};
+      localStorage.setItem('thHost',JSON.stringify(data));
+    } else if(G.myTeamId){
+      const data={phase:G.phase,myTeamId:G.myTeamId,myPlayerName:G.myPlayerName,cups:G.cups,pos:G.pos,moveCount:G.moveCount,fiftyFiftyCount:G.fiftyFiftyCount,board:G.board};
+      localStorage.setItem('thPlayer'+G.myTeamId,JSON.stringify(data));
+    }
+  }catch(e){}
+}
+function clearSession(){
+  try{for(let i=1;i<=7;i++)localStorage.removeItem('thPlayer'+i);localStorage.removeItem('thHost')}catch(e){}
+}
+function loadSession(){
+  try{
+    if(G.hostRole){
+      const raw=localStorage.getItem('thHost');if(!raw)return false;
+      const data=JSON.parse(raw);if(data.phase==='setup')return false;
+      Object.assign(G,data);return true;
+    } else if(G.myTeamId){
+      const raw=localStorage.getItem('thPlayer'+G.myTeamId);if(!raw)return false;
+      const data=JSON.parse(raw);Object.assign(G,data);return true;
+    }
+  }catch(e){}
+  return false;
+}
+
+// ========== HELPERS ==========
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.random()*i|0;[a[i],a[j]]=[a[j],a[i]]}return a}
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));const el=document.getElementById(id);if(el)el.classList.add('active')}
+function joinTeam(teamId){const ni=document.getElementById('setupPlayerName');const n=ni?ni.value.trim():'';const f=n||`Đội ${teamId}`;localStorage.setItem('playerName'+teamId,f);localStorage.setItem('playerNameLast',f);location.href='?role=player&id='+teamId}
+function initTeamSelect(){const b=document.getElementById('teamSelectBtns');if(!b)return;b.innerHTML=[1,2,3,4,5,6,7].map(i=>`<button class="bg-gray-700 hover:bg-red-600 active:scale-95 text-sm font-bold py-3 px-2 rounded-xl transition-all" onclick="joinTeam(${i})">Đội ${i}</button>`).join('');const n=document.getElementById('setupPlayerName');const s=localStorage.getItem('playerNameLast')||'';if(n&&s)n.value=s}
+function hideWaitingOverlay(){const w=document.getElementById('waitingOverlay');if(w)w.classList.add('hidden');const n=document.getElementById('myTeamNum');if(n)n.textContent=G.myTeamId||''}
+function showWaitingOverlay(){const w=document.getElementById('waitingOverlay');if(w)w.classList.remove('hidden');document.getElementById('myTeamNum').textContent=G.myTeamId||'';updateTeamNameEditor()}
+
+function toast(msg,duration=2000){
+  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  clearTimeout(t._hide);t._hide=setTimeout(()=>t.classList.remove('show'),duration)
+}
+
+function showModal(id,html){const el=document.getElementById(id);if(!el)return;const c=el.querySelector('.modal-box');if(c)c.innerHTML=html;el.classList.add('active')}
+function closeModal(id){document.getElementById(id)?.classList.remove('active')}
+function closePlayerModal(){closeModal('playerModal');G.questionMinimized=false;G.questionData=null;G.questionAnswers=null;document.getElementById('questionMinimized')?.classList.add('hidden')}
+function closeHostModal(){closeModal('hostModal')}
+function showPasswordModal(){document.getElementById('passwordModal').classList.add('active');document.getElementById('hostPasswordInput').value='';document.getElementById('passwordError').classList.add('hidden');setTimeout(()=>document.getElementById('hostPasswordInput').focus(),100)}
+function closePasswordModal(){document.getElementById('passwordModal').classList.remove('active')}
+function checkPassword(){const pwd=document.getElementById('hostPasswordInput').value;if(pwd==='3636'){closePasswordModal();location.href='?role=host'}else{document.getElementById('passwordError').classList.remove('hidden')}}
+function minimizeQuestion(){if(!G.currentCell)return;G.questionMinimized=true;closeModal('playerModal');document.getElementById('questionMinimized')?.classList.remove('hidden')}
+function restoreQuestion(){G.questionMinimized=false;document.getElementById('questionMinimized')?.classList.add('hidden');if(G.questionData&&G.questionAnswers)showLocalQuestion(G.questionData)}
+function broadcast(msg){try{channel.postMessage(msg)}catch(e){}}
+
+// ========== BOARD GEN WITH BFS ==========
+function hasValidPath(board){
+  const q=[{r:0,c:0}],v=new Set();
+  while(q.length){
+    const {r,c}=q.shift();const k=`${r},${c}`;
+    if(r===7&&c===7)return true;
+    if(v.has(k))continue;v.add(k);
+    for(const[dr,dc] of[[-1,0],[1,0],[0,-1],[0,1]]){
+      const nr=r+dr,nc=c+dc;
+      if(nr>=0&&nr<8&&nc>=0&&nc<8&&board[nr][nc].type!=='wall')q.push({r:nr,c:nc})
+    }
+  }
+  return false
+}
+
+function generateBoard(){
+  let board;
+  for(let attempt=0;attempt<100;attempt++){
+    board=[];
+    for(let r=0;r<8;r++){board[r]=[];for(let c=0;c<8;c++)board[r][c]={type:'empty',data:null}}
+    board[0][0]={type:'start',data:null};board[7][7]={type:'finish',data:null};
+    const avail=[];
+    for(let r=0;r<8;r++)for(let c=0;c<8;c++)if(board[r][c].type==='empty')avail.push([r,c]);
+    shuffle(avail);
+    let placed=0;
+    for(const[r,c]of avail){
+      if(placed>=NUM_WALLS)break;
+      if(r===0&&c===0||r===7&&c===7)continue;
+      board[r][c]={type:'wall',data:null};placed++
+    }
+    if(hasValidPath(board)){
+      const avail2=[];
+      for(let r=0;r<8;r++)for(let c=0;c<8;c++)if(board[r][c].type==='empty')avail2.push([r,c]);
+      shuffle(avail2);
+      const qs=shuffle([...QUESTIONS]);
+      let placed=0;
+      for(let qi=0;qi<avail2.length&&placed<NUM_QUESTIONS;qi++){
+        const[r,c]=avail2[qi];
+        let adj=false;
+        for(const[dr,dc] of[[-1,0],[1,0],[0,-1],[0,1]])
+          if(r+dr>=0&&r+dr<8&&c+dc>=0&&c+dc<8&&board[r+dr][c+dc].type==='question'){adj=true;break}
+        if(!adj){
+          const isHelp=placed>=NUM_QUESTIONS-3;
+          board[r][c]={type:'question',data:{...qs[placed]},isHelp};placed++
+        }
+      }
+      return board
+    }
+  }
+  return board
+}
+
+// ========== RENDER PLAYER BOARD ==========
+function renderBoard(){
+  const grid=document.getElementById('boardGrid');if(!grid)return;
+  if(!G.board||G.board.length===0)return;
+  grid.innerHTML='';
+  const pos=G.pos;
+  for(let r=0;r<8;r++)for(let c=0;c<8;c++){
+    const div=document.createElement('div');
+    const cell=G.board[r][c];const isPlayer=(r===pos.r&&c===pos.c);
+    const isEven=(r+c)%2===0;
+    div.className='cell';
+    if(cell.type==='wall'){div.classList.add('cell-wall');div.innerHTML=rockSvg()}
+    else if(cell.type==='start')div.classList.add('cell-start');
+    else if(cell.type==='finish'){div.classList.add('cell-finish');div.innerHTML=trophySvg()}
+    else if(cell.type==='question'){div.classList.add('cell-q');div.innerHTML=crateSvg()}
+    else div.classList.add('cell-empty',isEven?'cell-even':'cell-odd');
+    if(isPlayer){
+      div.classList.add('cell-player');
+      div.innerHTML=playerCharSvg()
+    }
+    grid.appendChild(div)
+  }
+  document.getElementById('moveCount').textContent=G.moveCount;
+}
+
+function playerCharSvg(){
+  return `<svg width="80%" height="80%" viewBox="0 0 48 48" id="playerChar" class="anim-idle drop-shadow-lg">
+    <circle cx="24" cy="16" r="8" fill="#e94560" stroke="#fff" stroke-width="1.5"/>
+    <circle cx="21" cy="14" r="2" fill="#fff"/><circle cx="27" cy="14" r="2" fill="#fff"/>
+    <circle cx="24" cy="18" r="1.5" fill="#fff"/>
+    <rect x="17" y="24" width="14" height="16" rx="5" fill="#e94560" stroke="#fff" stroke-width="1"/>
+    <rect x="12" y="26" width="6" height="4" rx="2" fill="#e94560" stroke="#fff" stroke-width="0.8" id="charLArm"/>
+    <rect x="30" y="26" width="6" height="4" rx="2" fill="#e94560" stroke="#fff" stroke-width="0.8" id="charRArm"/>
+    <rect x="19" y="38" width="4" height="6" rx="2" fill="#c23152" stroke="#fff" stroke-width="0.8" id="charLLeg"/>
+    <rect x="25" y="38" width="4" height="6" rx="2" fill="#c23152" stroke="#fff" stroke-width="0.8" id="charRLeg"/>
+  </svg>`
+}
+
+function rockSvg(){
+  return `<svg viewBox="0 0 48 48" width="82%" height="82%">
+    <polygon points="24,5 40,14 43,34 33,45 15,45 5,34 8,14" fill="#b8b8c8" stroke="#8080a0" stroke-width="1.2"/>
+    <polygon points="24,5 40,14 24,26" fill="#d4d4e2" opacity="0.65"/>
+    <polygon points="24,5 8,14 24,26" fill="#c4c4d6" opacity="0.5"/>
+    <polygon points="40,14 43,34 24,26" fill="#a0a0b4" opacity="0.4"/>
+    <polygon points="8,14 5,34 24,26" fill="#9898ac" opacity="0.35"/>
+    <polygon points="5,34 15,45 24,36" fill="#acacb8" opacity="0.35"/>
+    <polygon points="43,34 33,45 24,36" fill="#b4b4c0" opacity="0.45"/>
+    <polygon points="24,26 43,34 24,36 5,34" fill="#a8a8b8" opacity="0.25"/>
+    <path d="M20,10 L23,20 L20,30 L24,40" fill="none" stroke="#707090" stroke-width="0.9" opacity="0.6" stroke-linecap="round"/>
+    <path d="M30,12 L28,22" fill="none" stroke="#7a7a94" stroke-width="0.6" opacity="0.5" stroke-linecap="round"/>
+    <circle cx="18" cy="16" r="1.8" fill="white" opacity="0.25"/>
+  </svg>`
+}
+
+function crateSvg(){
+  return `<svg viewBox="0 0 48 48" width="80%" height="80%">
+    <rect x="6" y="6" width="36" height="36" rx="2" fill="#8B5E3C" stroke="#4a2a10" stroke-width="1.5"/>
+    <rect x="6" y="6" width="36" height="11" rx="1" fill="#A07044"/>
+    <rect x="6" y="31" width="36" height="11" rx="1" fill="#A07044"/>
+    <rect x="6" y="6" width="5" height="36" rx="1" fill="#6B4226" opacity="0.5"/>
+    <rect x="37" y="6" width="5" height="36" rx="1" fill="#6B4226" opacity="0.5"/>
+    <line x1="9" y1="9" x2="39" y2="39" stroke="#5C3A1E" stroke-width="5" stroke-linecap="round"/>
+    <line x1="39" y1="9" x2="9" y2="39" stroke="#5C3A1E" stroke-width="5" stroke-linecap="round"/>
+    <line x1="9" y1="9" x2="39" y2="39" stroke="#C08050" stroke-width="3" stroke-linecap="round"/>
+    <line x1="39" y1="9" x2="9" y2="39" stroke="#C08050" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="24" cy="24" r="2.2" fill="#333" stroke="#222" stroke-width="0.8"/>
+    <circle cx="11" cy="11" r="1.5" fill="#444"/>
+    <circle cx="37" cy="11" r="1.5" fill="#444"/>
+    <circle cx="11" cy="37" r="1.5" fill="#444"/>
+    <circle cx="37" cy="37" r="1.5" fill="#444"/>
+  </svg>`
+}
+
+function trophySvg(){
+  return `<svg viewBox="0 0 48 48" width="75%" height="75%">
+    <rect x="16" y="38" width="16" height="5" rx="1" fill="#B8860B"/>
+    <rect x="13" y="42" width="22" height="3" rx="1" fill="#DAA520"/>
+    <rect x="20" y="32" width="8" height="7" rx="1" fill="#DAA520"/>
+    <path d="M14,8 L34,8 L32,26 L16,26 Z" fill="#FFD700" stroke="#B8860B" stroke-width="1"/>
+    <path d="M14,8 Q6,10 8,20 Q10,26 16,24" fill="#FFD700" stroke="#B8860B" stroke-width="0.8"/>
+    <path d="M34,8 Q42,10 40,20 Q38,26 32,24" fill="#FFD700" stroke="#B8860B" stroke-width="0.8"/>
+    <path d="M16,26 Q24,32 32,26" fill="#DAA520" stroke="#B8860B" stroke-width="0.8"/>
+    <ellipse cx="24" cy="16" rx="6" ry="5" fill="#FFF8DC" opacity="0.4"/>
+    <text x="24" y="20" text-anchor="middle" font-size="8" fill="#B8860B" font-weight="bold">★</text>
+  </svg>`
+}
+
+function setCharAnim(dir){
+  const svg=document.getElementById('playerChar');if(!svg)return;
+  svg.classList.remove('anim-idle','anim-walk');
+  if(dir==='idle')svg.classList.add('anim-idle');
+  else svg.classList.add('anim-walk');
+  const lArm=document.getElementById('charLArm'),rArm=document.getElementById('charRArm');
+  const lLeg=document.getElementById('charLLeg'),rLeg=document.getElementById('charRLeg');
+  if(!lArm)return;
+  const reset=()=>{lArm.setAttribute('transform','');rArm.setAttribute('transform','');lLeg.setAttribute('transform','');rLeg.setAttribute('transform','');svg.style.transform=''};
+  reset();
+  if(dir==='left')svg.style.transform='scaleX(-1)';
+  else if(dir==='right')svg.style.transform='';
+  if(dir==='up'||dir==='down'||dir==='left'||dir==='right'){
+    lArm.setAttribute('transform','rotate(-15,15,28)');rArm.setAttribute('transform','rotate(15,33,28)');
+    lLeg.setAttribute('transform','rotate(10,21,41)');rLeg.setAttribute('transform','rotate(-10,27,41)')
+  }
+  clearTimeout(G.charAnimTimeout);
+  G.charAnimTimeout=setTimeout(()=>{svg.classList.add('anim-idle');reset()},400)
+}
+
+// ========== PLAYER MOVEMENT ==========
+function movePlayer(dr,dc){
+  if(G.phase==='won'||G.phase==='finished')return;
+  if(G.currentCell||G.questionMinimized){toast('⏳ Đang xử lý câu hỏi...');return}
+  const nr=G.pos.r+dr,nc=G.pos.c+dc;
+  if(nr<0||nr>=8||nc<0||nc>=8)return;
+  const cell=G.board[nr][nc];
+  if(cell.type==='wall'){toast('🪨 Đường bị chặn!');return}
+  G.prevPos={...G.pos};G.pos={r:nr,c:nc};G.moveCount++;
+  const dir=dr===0?(dc>0?'right':'left'):(dr>0?'down':'up');
+  setCharAnim(dir);
+  renderBoard();saveSession();
+  if(cell.type==='finish'){
+    G.cups++;G.phase='finished';
+    broadcast({type:'cup-update',teamId:G.myTeamId,cups:G.cups});
+    toast(`🏆 Đã hoàn thành! Đội nhận 1 cúp!`);renderBoard();updateCupDisplay();saveSession();
+    const vp=document.getElementById('boardViewport');
+    let ov=vp.querySelector('.finish-overlay');
+    if(!ov){ov=document.createElement('div');ov.className='finish-overlay absolute inset-0 flex items-center justify-center bg-gray-900/70 z-10 rounded-xl';ov.innerHTML='<div class="text-center"><div class="text-6xl mb-2">🏆</div><div class="text-yellow-400 font-bold text-lg">ĐÃ HOÀN THÀNH!</div><div class="text-gray-400 text-sm mt-1">Đội nhận 1 cúp</div></div>';vp.style.position='relative';vp.appendChild(ov)}
+    return
+  }
+  if(cell.type==='question'){
+    if(cell.isHelp){
+      G.fiftyFiftyCount++;G.board[nr][nc]={type:'empty',data:null};
+      toast('✂️ Nhận được 50/50!');renderBoard();updateFiftyBtn();return
+    }
+    G.currentCell={r:nr,c:nc,cell};
+    cell.data={...QUESTIONS[Math.random()*QUESTIONS.length|0]};
+    showLocalQuestion(cell.data)
+  }
+}
+function showLocalQuestion(q){
+  G.questionData=q;
+  let ans=[{l:'A',t:q.a},{l:'B',t:q.b},{l:'C',t:q.c},{l:'D',t:q.d}];
+  shuffle(ans);G.questionAnswers=ans;
+  const btns=ans.map(a=>`<button class="w-full bg-gray-700 hover:bg-gray-600 active:bg-red-500 text-sm font-semibold p-3 rounded-lg transition ans-btn" data-label="${a.l}" onclick="localAnswer(this,'${a.l}')">${a.l}. ${a.t}</button>`).join('');
+  showModal('playerModal',`<div class="anim-fade"><div class="text-center mb-3"><span class="inline-block bg-red-500 text-white text-xs font-bold px-4 py-1 rounded-full">❓ CÂU HỎI!</span></div><h3 class="font-bold text-lg mb-3">${q.q}</h3><div class="grid grid-cols-2 gap-2">${btns}</div><div class="text-center mt-3"><button id="modalFiftyBtn" class="text-xs bg-purple-700 hover:bg-purple-600 disabled:opacity-40 px-3 py-1.5 rounded transition" onclick="useFiftyFifty()">✂️ 50/50 (<span id="modalFiftyCount">${G.fiftyFiftyCount}</span>)</button></div></div>`);
+  updateFiftyBtn()
+}
+function localAnswer(el,label){
+  if(!G.currentCell)return;
+  const qData=G.currentCell.cell.data;if(!qData)return;
+  const correct=label===qData.ans;
+  const btns=document.querySelectorAll('#playerModal .modal-box .ans-btn');
+  btns.forEach(b=>b.disabled=true);
+  if(correct){
+    el.classList.add('bg-green-600');toast('✅ Chính xác!');
+    G.board[G.currentCell.r][G.currentCell.c]={type:'empty',data:null}
+  }else{
+    el.classList.add('bg-red-600');toast('❌ Sai! Lùi lại!');
+    G.pos={...G.prevPos}
+  }
+  G.currentCell=null;G.questionMinimized=false;G.questionData=null;G.questionAnswers=null;closePlayerModal();renderBoard()
+}
+
+// ========== HOST DASHBOARD ==========
+function renderDashboard(){
+  const c=document.getElementById('teamProgress');if(!c)return;
+  c.innerHTML='';
+  G.teams.forEach(t=>{
+    const cups=G.teamCups[t.id]||0;
+    const players=G.connectedPlayers.filter(p=>p.teamId===t.id);
+    c.innerHTML+=`<div class="bg-gray-800/60 rounded-xl p-3 border border-gray-700">
+      <div class="flex justify-between items-center mb-1">
+        <span class="font-bold text-yellow-400 text-sm">${t.name}</span>
+        <span class="text-xs text-gray-400">${players.map(p=>p.name).join(', ')||'—'}</span>
+      </div>
+      <div class="progress-bar mt-1"><div class="progress-fill bg-gradient-to-r from-yellow-500 to-yellow-400" style="width:${Math.min(100,cups/7*100)}%"></div></div>
+      <div class="flex justify-between text-xs text-gray-600 mt-0.5">
+        <span>🏆 ${cups} cúp</span>
+        <span>${players.length} người chơi</span>
+      </div>
+    </div>`
+  });
+  const pl=document.getElementById('playerList');
+  if(pl)pl.innerHTML=G.connectedPlayers.map(p=>`<div class="flex justify-between text-xs bg-gray-800/40 rounded-lg px-2 py-1.5"><span class="text-gray-300">${p.name}</span><span class="text-gray-500">${G.teamNames[p.teamId]||`Đội ${p.teamId}`}</span></div>`).join('')||'<div class="text-xs text-gray-600">Chưa có người chơi</div>';
+  const el=document.getElementById('eventLog');
+  if(el)el.innerHTML=G.eventLog.slice(0,10).map(e=>{
+    const cls=e.type==='good'?'log-good':e.type==='bad'?'log-bad':e.type==='power'?'log-power':'log-info';
+    return `<div class="log-entry ${cls}">${e.msg}</div>`
+  }).join('')||'<div class="text-xs text-gray-600">Chưa có sự kiện</div>'
+}
+
+function addEvent(msg,type='info'){
+  G.eventLog.unshift({msg,type,time:Date.now()});
+  if(G.eventLog.length>50)G.eventLog.pop();
+  renderDashboard()
+}
+
+function renderSetupPlayers(){
+  const el=document.getElementById('setupPlayerList');
+  if(!el)return;
+  if(G.connectedPlayers.length===0)el.innerHTML='<div class="text-xs text-gray-600">Đang chờ người chơi kết nối...</div>';
+  else el.innerHTML=G.connectedPlayers.map(p=>`<div class="flex justify-between text-xs bg-gray-800/40 rounded-lg px-2 py-1.5"><span class="text-gray-300">${p.name}</span><span class="text-gray-500">${G.teamNames[p.teamId]||`Đội ${p.teamId}`}</span></div>`).join('');
+}
+
+// ========== BROADCAST HANDLING ==========
+channel.onmessage=function(e){
+  const msg=e.data;if(!msg||!msg.type)return;
+  if(G.hostRole)handleHostMsg(msg);else if(G.myTeamId)handlePlayerMsg(msg)
+};
+
+function handleHostMsg(msg){
+  switch(msg.type){
+    case 'player-ready':
+      if(!G.connectedPlayers.find(p=>p.teamId===msg.teamId&&p.name===msg.playerName)){
+        G.connectedPlayers.push({teamId:msg.teamId,name:msg.playerName});
+        if(!G.teamCaptains[msg.teamId])G.teamCaptains[msg.teamId]=msg.playerName;
+        renderDashboard();
+        if(G.phase==='setup')renderSetupPlayers();
+        addEvent(`✅ ${msg.playerName} (Đội ${msg.teamId}) đã vào game!`,'good');
+        saveSession();
+      }
+      if(G.phase==='setup')broadcast({type:'state-sync',phase:G.phase,teams:G.teams,teamCaptains:G.teamCaptains,teamNames:G.teamNames});
+      else broadcast({type:'state-sync',phase:G.phase,board:G.board,teams:G.teams,teamCaptains:G.teamCaptains,teamNames:G.teamNames,teamCups:G.teamCups});
+      break;
+    case 'rename-team':
+      G.teamNames[msg.teamId]=msg.name;
+      const existingTeam=G.teams.find(t=>t.id===msg.teamId);
+      if(existingTeam)existingTeam.name=msg.name;
+      broadcast({type:'state-sync',phase:G.phase,board:G.board,teams:G.teams,teamCaptains:G.teamCaptains,teamNames:G.teamNames,teamCups:G.teamCups});
+      renderDashboard();saveSession();
+      break;
+    case 'cup-update':
+      if(!G.teamCups[msg.teamId]||msg.cups>G.teamCups[msg.teamId])G.teamCups[msg.teamId]=msg.cups;
+      renderDashboard();saveSession();
+      break;
+    case 'help-collected':
+      if(G.board[msg.cellR]&&G.board[msg.cellR][msg.cellC])G.board[msg.cellR][msg.cellC]={type:'empty',data:null};
+      addEvent(`✂️ Đội ${msg.teamId} nhặt được 50/50`,'info');renderDashboard();
+      break;
+  }
+}
+
+function handlePlayerMsg(msg){
+  switch(msg.type){
+    case 'state-sync':
+      if(msg.board)G.board=msg.board;
+      if(msg.teams)G.teams=msg.teams;
+      if(msg.teamCaptains)G.teamCaptains=msg.teamCaptains;
+      if(msg.teamNames)G.teamNames=msg.teamNames;
+      if(msg.teamCups)G.teamCups=msg.teamCups;
+      if(G.board.length){hideWaitingOverlay();renderBoard()}
+      break;
+    case 'game-start':
+      G.phase='playing';G.teams=msg.teams||[];
+      if(msg.board&&msg.board.length&&!G.board.length){G.board=msg.board}
+      hideWaitingOverlay();if(G.board.length)renderBoard();
+      break;
+    case 'host-reset':
+      G.phase='setup';G.pos={r:0,c:0};G.moveCount=0;G.board=[];G.currentCell=null;
+      G.fiftyFiftyCount=0;G.myTeamId=null;G.myPlayerName='';
+      clearSession();for(let i=1;i<=7;i++)localStorage.removeItem('teamName'+i);localStorage.removeItem('playerNameLast');
+      hideWaitingOverlay();showScreen('role-screen');
+      break;
+  }
+}
+
+// ========== 50/50 ==========
+function updateFiftyBtn(){
+  const btn=document.getElementById('btnFiftyFifty');
+  if(btn){btn.textContent=`✂️ 50/50 (${G.fiftyFiftyCount})`;btn.disabled=G.fiftyFiftyCount<=0;btn.classList.toggle('opacity-40',G.fiftyFiftyCount<=0)}
+  const mfb=document.getElementById('modalFiftyCount');
+  if(mfb)mfb.textContent=G.fiftyFiftyCount;
+  const mfBtn=document.getElementById('modalFiftyBtn');
+  if(mfBtn){mfBtn.disabled=G.fiftyFiftyCount<=0;mfBtn.classList.toggle('opacity-40',G.fiftyFiftyCount<=0)}
+}
+function useFiftyFifty(){
+  if(G.fiftyFiftyCount<=0)return;
+  if(!G.currentCell&&!G.questionData){toast('❌ Không có câu hỏi nào!');return}
+  G.fiftyFiftyCount--;updateFiftyBtn();
+  if(G.questionData){
+    const q=G.questionData;
+    const wrong=[{l:'A',t:q.a},{l:'B',t:q.b},{l:'C',t:q.c},{l:'D',t:q.d}].filter(a=>a.l!==q.ans);
+    const remove=shuffle(wrong).slice(0,2);
+    document.querySelectorAll('#playerModal .modal-box .ans-btn').forEach(b=>{
+      const lbl=b.getAttribute('data-label');
+      if(remove.find(r=>r.l===lbl)){b.innerHTML='<s>---</s>';b.disabled=true;b.classList.add('opacity-30')}
+    });
+    toast('✂️ Đã loại 2 đáp án sai!')
+  }
+}
+
+function updateCupDisplay(){
+  const el=document.getElementById('cupCount');
+  if(el)el.textContent=`${G.cups}`;
+  if(!G.hostRole){broadcast({type:'cup-update',teamId:G.myTeamId,cups:G.cups});saveSession()}
+}
+
+function updateTeamNameEditor(){
+  const editor=document.getElementById('teamNameEditor');
+  const input=document.getElementById('teamNameInput');
+  if(!editor||!input)return;
+  const saved=localStorage.getItem('teamName'+G.myTeamId);
+  const confirmed=document.getElementById('confirmedTeamName');
+  if(!saved){
+    editor.classList.remove('hidden');
+    if(confirmed)confirmed.classList.add('hidden');
+    setTimeout(()=>input.focus(),100);
+  } else {
+    editor.classList.add('hidden');
+    if(confirmed&&saved){confirmed.textContent=saved;confirmed.classList.remove('hidden')}
+  }
+}
+function renameTeam(val){
+  const input=document.getElementById('teamNameInput');
+  if(input)input.dataset.userEdited='1';
+  broadcast({type:'rename-team',teamId:G.myTeamId,name:val||`Đội ${G.myTeamId}`});
+  const badge=document.getElementById('playerTeamBadge');
+  if(badge)badge.textContent=val||`Đội ${G.myTeamId}`;
+  document.getElementById('myTeamNum').textContent=val||G.myTeamId;
+}
+function confirmTeamName(){
+  const input=document.getElementById('teamNameInput');
+  if(!input)return;
+  const val=input.value.trim()||`Đội ${G.myTeamId}`;
+  input.dataset.userEdited='1';
+  localStorage.setItem('teamName'+G.myTeamId,val);
+  const editor=document.getElementById('teamNameEditor');
+  if(editor)editor.classList.add('hidden');
+  const confirmed=document.getElementById('confirmedTeamName');
+  if(confirmed){confirmed.textContent=val;confirmed.classList.remove('hidden')}
+  const badge=document.getElementById('playerTeamBadge');
+  if(badge)badge.textContent=val;
+  document.getElementById('myTeamNum').textContent=val;
+  broadcast({type:'rename-team',teamId:G.myTeamId,name:val});
+}
+
+// ========== SWIPE ==========
+document.addEventListener('DOMContentLoaded',()=>{
+  const vp=document.getElementById('boardViewport');
+  if(!vp)return;
+  vp.addEventListener('touchstart',e=>{G.touchStart=e.touches[0]});
+  vp.addEventListener('touchend',e=>{
+    if(!G.touchStart||!e.changedTouches[0])return;
+    const dx=e.changedTouches[0].clientX-G.touchStart.clientX;
+    const dy=e.changedTouches[0].clientY-G.touchStart.clientY;
+    if(Math.abs(dx)<10&&Math.abs(dy)<10)return;
+    if(Math.abs(dx)>Math.abs(dy))movePlayer(0,dx>0?1:-1);
+    else movePlayer(dy>0?1:-1,0);
+    G.touchStart=null
+  })
+});
+
+// ========== KEYBOARD ==========
+document.addEventListener('keydown',e=>{
+  if(!G.myTeamId||G.phase==='won'||G.phase==='finished')return;
+  if(document.activeElement.tagName==='INPUT')return;
+  const map={'ArrowUp':[-1,0],'ArrowDown':[1,0],'ArrowLeft':[0,-1],'ArrowRight':[0,1]};
+  const dir=map[e.key];if(!dir)return;
+  e.preventDefault();movePlayer(dir[0],dir[1])
+});
+
+// ========== START / RESET ==========
+function startGame(){
+  try{
+    G.teams=[];
+    if(G.connectedPlayers.length===0){
+      for(let i=1;i<=7;i++){G.teams.push({id:i,name:G.teamNames[i]||`Đội ${i}`})}
+    } else {
+      G.connectedPlayers.forEach(p=>{
+        if(!G.teams.find(t=>t.id===p.teamId))G.teams.push({id:p.teamId,name:G.teamNames[p.teamId]||p.name})
+      });
+    }
+    G.teams.forEach(t=>{G.teamCups[t.id]=0});
+    G.board=generateBoard();G.phase='playing';G.currentCell=null;G.currentTarget=null;
+    document.getElementById('hostSetup').classList.add('hidden');
+    document.getElementById('hostDashboard').classList.remove('hidden');
+    renderDashboard();renderBoard();addEvent('🎮 Game bắt đầu!','good');saveSession();
+    broadcast({type:'state-sync',phase:G.phase,board:G.board,teams:G.teams,teamCaptains:G.teamCaptains,teamNames:G.teamNames,teamCups:G.teamCups})
+  }catch(e){toast('Lỗi: '+e.message)}
+}
+
+function resetGame(){
+  if(!confirm('Reset game?'))return;
+  G.phase='setup';G.eventLog=[];G.connectedPlayers=[];G.board=[];G.currentCell=null;G.currentTarget=null;
+  G.filterActive=false;G.fiftyFiftyCount=0;G.cups=0;G.teamCups={};G.teamNames={};G.teamCaptains={};
+  G.hostRole=false;G.myTeamId=null;G.myPlayerName='';G.pos={r:0,c:0};G.moveCount=0;
+  clearSession();for(let i=1;i<=7;i++)localStorage.removeItem('teamName'+i);localStorage.removeItem('playerNameLast');
+  broadcast({type:'host-reset'});showScreen('role-screen')
+}
+
+// ========== INIT ==========
+function init(){
+  if(location.protocol==='file:'){
+    document.body.innerHTML=`<div class="min-h-screen flex flex-col items-center justify-center p-6 text-center"><h1 class="text-2xl font-black text-yellow-400 mb-4">⚠️ Cần HTTP server</h1><p class="text-gray-400 text-sm mb-4">Mở terminal và chạy:<br><code class="bg-gray-800 px-3 py-1 rounded text-yellow-400 inline-block mt-2">python -m http.server 8000</code></p><p class="text-gray-500 text-xs">Rồi mở http://localhost:8000</p></div>`;return
+  }
+  const role=new URLSearchParams(location.search).get('role');
+  if(role==='host'){
+    G.hostRole=true;showScreen('host-screen');
+    if(loadSession()){
+      if(G.phase==='playing'||G.phase==='won'){document.getElementById('hostSetup').classList.add('hidden');document.getElementById('hostDashboard').classList.remove('hidden');renderDashboard();renderBoard();broadcast({type:'state-sync',phase:G.phase,board:G.board,teams:G.teams,teamCaptains:G.teamCaptains,teamNames:G.teamNames,teamCups:G.teamCups});return}
+    }
+    G.phase='setup';G.board=[];renderBoard();
+    renderSetupPlayers();
+    broadcast({type:'state-sync',phase:G.phase});saveSession();
+  }else if(role==='player'){
+    G.myTeamId=parseInt(new URLSearchParams(location.search).get('id'))||0;
+    if(G.myTeamId<1||G.myTeamId>7){showScreen('team-select-screen');initTeamSelect();return}
+    showScreen('player-screen');
+    if(loadSession()){
+      const savedName=localStorage.getItem('teamName'+G.myTeamId);
+      document.getElementById('playerTeamBadge').textContent=savedName||`Đội ${G.myTeamId}`;
+      G.board=[];G.phase='setup';
+      updateCupDisplay();renderBoard();showWaitingOverlay();
+      broadcast({type:'player-ready',teamId:G.myTeamId,playerName:G.myPlayerName});
+      return
+    }
+    G.cups=0;G.phase='setup';
+    G.myPlayerName=localStorage.getItem('playerName'+G.myTeamId)||`Đội ${G.myTeamId}`;
+    G.isCaptain=!localStorage.getItem('teamName'+G.myTeamId);
+    document.getElementById('playerTeamBadge').textContent=localStorage.getItem('teamName'+G.myTeamId)||`Đội ${G.myTeamId}`;
+    renderBoard();showWaitingOverlay();updateCupDisplay();
+    broadcast({type:'player-ready',teamId:G.myTeamId,playerName:G.myPlayerName});
+  }else{clearSession();for(let i=1;i<=7;i++)localStorage.removeItem('teamName'+i);localStorage.removeItem('playerNameLast');showScreen('role-screen')}
+}
+
+init();
+</script>
+</body>
+</html>
