@@ -789,7 +789,7 @@ function renderDashboard(){
     const pct=totalPlayers>0?Math.min(100,cups/totalPlayers*100):0;
     c.innerHTML+=`<div class="bg-gray-800/60 rounded-xl p-3 border border-gray-700">
       <div class="flex justify-between items-center mb-1">
-        <span class="font-bold text-yellow-400 text-sm">${t.name}</span>
+        <span class="font-bold text-yellow-400 text-sm">${G.teamNames[t.id]||t.name}</span>
         <span class="text-xs text-gray-400">${players.map(p=>p.name).join(', ')||'—'}</span>
       </div>
       <div class="progress-bar mt-1"><div class="progress-fill bg-gradient-to-r from-yellow-500 to-yellow-400" style="width:${Math.min(100,pct)}%"></div></div>
@@ -831,7 +831,7 @@ function renderSetupTeams(){
       else list.innerHTML=G.teams.map(t=>{
         const cnt=(G.connectedPlayers||[]).filter(p=>p.teamId===t.id).length;
         const canRemove=cnt===0;
-        return `<div class="flex justify-between items-center text-xs bg-gray-800/40 rounded-lg px-2 py-1.5"><span class="text-gray-300">${t.name}</span><span class="flex items-center gap-2"><span class="text-gray-500">${cnt} 👤</span>${canRemove?`<button class="text-red-400 hover:text-red-300 text-xs" onclick="removeTeam(${t.id})">✕</button>`:''}</span></div>`
+        return `<div class="flex justify-between items-center text-xs bg-gray-800/40 rounded-lg px-2 py-1.5"><span class="text-gray-300">${G.teamNames[t.id]||t.name}</span><span class="flex items-center gap-2"><span class="text-gray-500">${cnt} 👤</span>${canRemove?`<button class="text-red-400 hover:text-red-300 text-xs" onclick="removeTeam(${t.id})">✕</button>`:''}</span></div>`
       }).join('')
     }
   }
