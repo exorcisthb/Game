@@ -1100,8 +1100,19 @@ function init(){
     generateQR(roomId);
     document.title='Host - '+roomId+' - Treasure Hunt';
     if(localStorage.getItem('hostRoom'))localStorage.removeItem('hostRoom');
-    G.phase='setup';G.board=[];G.teams=[{id:1,name:'Đội 1'},{id:2,name:'Đội 2'}];renderBoard();renderSetupPlayers();
-    attachListeners();syncGameState();saveIdentity();
+    G.phase='setup';G.board=[];
+    // Restore teams from Firebase session (persist qua reload)
+    DB_GAME.once('value').then(snap=>{
+      const data=snap.val();
+      if(data&&data.teams&&data.teams.length){G.teams=data.teams;if(data.teamNames)G.teamNames=data.teamNames;if(data.teamCaptains)G.teamCaptains=data.teamCaptains;if(data.eventLog)G.eventLog=data.eventLog;if(data.connectedPlayers)G.connectedPlayers=data.connectedPlayers}
+      else{G.teams=[{id:1,name:'Đội 1'},{id:2,name:'Đội 2'}]}
+      renderBoard();renderSetupPlayers();
+      attachListeners();syncGameState();saveIdentity();
+    }).catch(()=>{
+      G.teams=[{id:1,name:'Đội 1'},{id:2,name:'Đội 2'}];
+      renderBoard();renderSetupPlayers();
+      attachListeners();syncGameState();saveIdentity()
+    });
   }else if(role==='player'){
     if(!roomId){showScreen('role-screen');toast('⚠️ Cần mã phòng! Quét QR hoặc nhập mã từ Host.',3000);return}
     G.myTeamId=parseInt(new URLSearchParams(location.search).get('id'))||0;
