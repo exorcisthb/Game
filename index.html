@@ -328,7 +328,7 @@ let G={
   phase:'setup',board:[],teams:[],teamPositions:{},teamMoveCount:{},teamProgress:{},
   connectedPlayers:[],currentPlayerIndex:0,currentTarget:null,currentCell:null,
   pos:{r:0,c:0},prevPos:null,moveCount:0,eventLog:[],
-  filterActive:false,fiftyFiftyCount:0,teamCaptains:{},teamNames:{},cups:0,teamCups:{},
+  filterActive:false,fiftyFiftyCount:0,fiftyRemoved:[],teamCaptains:{},teamNames:{},cups:0,teamCups:{},
   hostRole:false,myTeamId:0,myPlayerName:'',myPlayerId:'',teamPlayerCount:{},
   isCaptain:false,charAnimTimeout:null,touchStart:null,
   questionMinimized:false,questionData:null,questionAnswers:null,
@@ -746,7 +746,9 @@ function showLocalQuestion(q){
   shuffle(ans);G.questionAnswers=ans;
   const btns=ans.map(a=>`<button class="w-full bg-gray-700 hover:bg-gray-600 active:bg-red-500 text-sm font-semibold p-3 rounded-lg transition ans-btn" data-label="${a.l}" onclick="localAnswer(this,'${a.l}')">${a.l}. ${a.t}</button>`).join('');
   showModal('playerModal',`<div class="anim-fade"><div class="text-center mb-3"><span class="inline-block bg-red-500 text-white text-xs font-bold px-4 py-1 rounded-full">❓ CÂU HỎI!</span></div><h3 class="font-bold text-lg mb-3">${q.q}</h3><div class="grid grid-cols-2 gap-2">${btns}</div><div class="text-center mt-3"><button id="modalFiftyBtn" class="text-xs bg-purple-700 hover:bg-purple-600 disabled:opacity-40 px-3 py-1.5 rounded transition" onclick="useFiftyFifty()">✂️ 50/50 (<span id="modalFiftyCount">${G.fiftyFiftyCount}</span>)</button></div></div>`);
-  updateFiftyBtn()
+  updateFiftyBtn();
+  // Re-apply 50/50 removals if restoring minimized question
+  if(G.fiftyRemoved.length)setTimeout(applyFiftyRemoved,50)
 }
 function localAnswer(el,label){
   if(!G.currentCell)return;
@@ -762,7 +764,7 @@ function localAnswer(el,label){
     el.classList.add('bg-red-600');toast('❌ Sai! Lùi lại!');
     G.pos={...G.prevPos}
   }
-  G.currentCell=null;G.questionMinimized=false;G.questionData=null;G.questionAnswers=null;closePlayerModal();renderBoard();syncPlayer()
+  G.currentCell=null;G.questionMinimized=false;G.questionData=null;G.questionAnswers=null;G.fiftyRemoved=[];closePlayerModal();renderBoard();syncPlayer()
 }
 
 // ========== HOST DASHBOARD ==========
@@ -910,13 +912,16 @@ function useFiftyFifty(){
   if(G.questionData){
     const q=G.questionData;
     const wrong=[{l:'A',t:q.a},{l:'B',t:q.b},{l:'C',t:q.c},{l:'D',t:q.d}].filter(a=>a.l!==q.ans);
-    const remove=shuffle(wrong).slice(0,2);
-    document.querySelectorAll('#playerModal .modal-box .ans-btn').forEach(b=>{
-      const lbl=b.getAttribute('data-label');
-      if(remove.find(r=>r.l===lbl)){b.innerHTML='<s>---</s>';b.disabled=true;b.classList.add('opacity-30')}
-    });
+    G.fiftyRemoved=shuffle(wrong).slice(0,2).map(r=>r.l);
+    applyFiftyRemoved();
     toast('✂️ Đã loại 2 đáp án sai!')
   }
+}
+function applyFiftyRemoved(){
+  document.querySelectorAll('#playerModal .modal-box .ans-btn').forEach(b=>{
+    const lbl=b.getAttribute('data-label');
+    if(G.fiftyRemoved.includes(lbl)){b.innerHTML='<s>---</s>';b.disabled=true;b.classList.add('opacity-30')}
+  });
 }
 
 function updateCupDisplay(){
