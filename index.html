@@ -171,15 +171,16 @@ input[type="text"]:focus{box-shadow:0 0 10px rgba(245,158,11,.25);border-color:#
   <p class="text-gray-400 text-sm mb-6">Game truy tìm kho báu nhiều người chơi</p>
   <button class="w-56 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-bold py-3 rounded-xl mb-3 transition" onclick="showPasswordModal()">🎮 Máy chủ (Host)</button>
   <button class="w-56 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3 rounded-xl transition" onclick="showScreen('team-select-screen');initTeamSelect()">🎮 Người chơi</button>
-  <p class="text-gray-600 text-xs mt-4">🌐 Online — quét QR từ màn hình Host để vào game!</p>
+  <p class="text-gray-600 text-xs mt-4">🌐 Cần mã phòng từ Host để tham gia — quét QR hoặc nhập tay!</p>
 </div>
 
 <!-- ===== TEAM SELECT ===== -->
 <div id="team-select-screen" class="screen flex flex-col items-center justify-center min-h-screen p-6 text-center">
   <h1 class="text-2xl font-black text-yellow-400 mb-2">🎮 Chọn đội của bạn</h1>
-  <p class="text-gray-400 text-sm mb-4">Nhập tên và chọn số đội</p>
+  <p class="text-gray-400 text-sm mb-4">Nhập tên và mã phòng, rồi chọn đội</p>
   <input type="text" id="setupPlayerName" placeholder="Nhập tên của bạn..." maxlength="20" class="bg-gray-900 border border-gray-700 rounded-xl px-4 py-2.5 text-center text-gray-300 outline-none focus:border-yellow-400 w-56 mb-2">
-  <input type="text" id="roomCodeInput" placeholder="Nhập mã phòng (để trống = mặc định)" maxlength="10" class="bg-gray-900 border border-gray-700 rounded-xl px-4 py-2 text-center text-gray-300 outline-none focus:border-yellow-400 w-56 mb-4 text-sm">
+  <input type="text" id="roomCodeInput" placeholder="🔑 Nhập mã phòng từ Host" maxlength="10" class="bg-gray-900 border border-yellow-600 rounded-xl px-4 py-2 text-center text-gray-300 outline-none focus:border-yellow-400 w-56 mb-4 text-sm font-bold tracking-widest uppercase" oninput="validateRoomInput()">
+  <p id="roomError" class="text-red-400 text-xs mb-2 hidden">⚠️ Vui lòng nhập mã phòng!</p>
   <div id="teamSelectBtns" class="grid grid-cols-4 gap-2 w-full max-w-xs"></div>
   <button class="mt-6 text-xs text-gray-600 hover:text-gray-400 transition" onclick="showScreen('role-screen')">← Quay lại</button>
 </div>
@@ -333,7 +334,8 @@ let G={
   questionMinimized:false,questionData:null,questionAnswers:null,
   roomId:'default',fbListenersAttached:false,fbPendingInit:false
 };
-const roomId=new URLSearchParams(location.search).get('room')||'default';
+const _urlRoom=new URLSearchParams(location.search).get('room');
+const roomId=_urlRoom||'';
 G.roomId=roomId;
 const DB_REF=DB.ref('treasure_hunt/'+roomId);
 const DB_GAME=DB_REF.child('game');
@@ -344,13 +346,32 @@ function pid(){return 'p_'+G.myTeamId+'_'+Math.random().toString(36).substring(2
 // ========== HELPERS ==========
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.random()*i|0;[a[i],a[j]]=[a[j],a[i]]}return a}
 function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));const el=document.getElementById(id);if(el)el.classList.add('active')}
+function validateRoomInput(){
+  const ri=document.getElementById('roomCodeInput');const err=document.getElementById('roomError');
+  if(err)err.classList.toggle('hidden',!!(ri&&ri.value.trim()));
+  const btns=document.querySelectorAll('#teamSelectBtns button');
+  const ok=ri&&ri.value.trim();
+  btns.forEach(b=>{b.disabled=!ok;b.classList.toggle('opacity-40',!ok)})
+}
 function joinTeam(teamId){
+  const ri=document.getElementById('roomCodeInput');const room=ri?ri.value.trim():'';
+  if(!room){const err=document.getElementById('roomError');if(err)err.classList.remove('hidden');ri?.focus();return}
   const ni=document.getElementById('setupPlayerName');const n=ni?ni.value.trim():'';
   const f=n||`Đội ${teamId}`;localStorage.setItem('playerName'+teamId,f);localStorage.setItem('playerNameLast',f);
-  const ri=document.getElementById('roomCodeInput');const room=ri?ri.value.trim():'';
   const qp=new URLSearchParams(location.search);qp.set('role','player');qp.set('id',teamId);
-  if(room){qp.set('room',room);localStorage.setItem('lastRoom',room)}
+  qp.set('room',room);localStorage.setItem('lastRoom',room);
   location.href='?'+qp.toString()
+}
+function initTeamSelect(){
+  const b=document.getElementById('teamSelectBtns');if(!b)return;
+  b.innerHTML=[1,2,3,4,5,6,7].map(i=>`<button class="bg-gray-700 text-sm font-bold py-3 px-2 rounded-xl transition-all" onclick="joinTeam(${i})">Đội ${i}</button>`).join('');
+  const n=document.getElementById('setupPlayerName');const s=localStorage.getItem('playerNameLast')||'';if(n&&s)n.value=s;
+  const ri=document.getElementById('roomCodeInput');
+  // Auto-fill room from URL param first, then localStorage
+  const urlRoom=new URLSearchParams(location.search).get('room');
+  if(urlRoom){ri.value=urlRoom;localStorage.setItem('lastRoom',urlRoom)}
+  else{const lr=localStorage.getItem('lastRoom');if(ri&&lr)ri.value=lr}
+  validateRoomInput()
 }
 function initTeamSelect(){
   const b=document.getElementById('teamSelectBtns');if(!b)return;
@@ -1037,6 +1058,7 @@ function init(){
     G.phase='setup';G.board=[];renderBoard();renderSetupPlayers();
     attachListeners();syncGameState();saveIdentity();
   }else if(role==='player'){
+    if(!roomId){showScreen('role-screen');toast('⚠️ Cần mã phòng! Quét QR hoặc nhập mã từ Host.',3000);return}
     G.myTeamId=parseInt(new URLSearchParams(location.search).get('id'))||0;
     if(G.myTeamId<1||G.myTeamId>7){showScreen('team-select-screen');initTeamSelect();return}
     showScreen('player-screen');
