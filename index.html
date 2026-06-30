@@ -98,6 +98,11 @@ input[type="text"]:focus{box-shadow:0 0 10px rgba(245,158,11,.25);border-color:#
           </div>
         </div>
       </div>
+      <div id="teamManagement" class="mt-4 border-t border-gray-700 pt-3 hidden">
+        <h2 class="text-yellow-400 font-bold text-sm mb-2">👥 Quản lý đội</h2>
+        <div id="setupTeamList" class="text-sm space-y-1 mb-2"></div>
+        <button class="w-full bg-green-600 hover:bg-green-700 text-white text-sm font-bold py-2 rounded-xl transition" onclick="addTeam()">➕ Thêm đội</button>
+      </div>
       <button class="mt-4 w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-bold py-3 rounded-xl transition text-lg" onclick="startGame()">🚀 Bắt đầu</button>
     </div>
   </div>
@@ -179,7 +184,7 @@ input[type="text"]:focus{box-shadow:0 0 10px rgba(245,158,11,.25);border-color:#
   <h1 class="text-2xl font-black text-yellow-400 mb-2">🎮 Chọn đội của bạn</h1>
   <p class="text-gray-400 text-sm mb-4">Nhập tên và mã phòng, rồi chọn đội</p>
   <input type="text" id="setupPlayerName" placeholder="Nhập tên của bạn..." maxlength="20" class="bg-gray-900 border border-gray-700 rounded-xl px-4 py-2.5 text-center text-gray-300 outline-none focus:border-yellow-400 w-56 mb-2">
-  <input type="text" id="roomCodeInput" placeholder="🔑 Nhập mã phòng từ Host" maxlength="10" class="bg-gray-900 border border-yellow-600 rounded-xl px-4 py-2 text-center text-gray-300 outline-none focus:border-yellow-400 w-56 mb-4 text-sm font-bold tracking-widest uppercase" oninput="validateRoomInput()">
+  <input type="text" id="roomCodeInput" placeholder="🔑 Nhập mã phòng từ Host" maxlength="10" class="bg-gray-900 border border-yellow-600 rounded-xl px-4 py-2 text-center text-gray-300 outline-none focus:border-yellow-400 w-56 mb-4 text-sm font-bold tracking-widest uppercase">
   <p id="roomError" class="text-red-400 text-xs mb-2 hidden">⚠️ Vui lòng nhập mã phòng!</p>
   <div id="teamSelectBtns" class="grid grid-cols-4 gap-2 w-full max-w-xs"></div>
   <button class="mt-6 text-xs text-gray-600 hover:text-gray-400 transition" onclick="showScreen('role-screen')">← Quay lại</button>
@@ -362,26 +367,32 @@ function joinTeam(teamId){
   qp.set('room',room);localStorage.setItem('lastRoom',room);
   location.href='?'+qp.toString()
 }
-function initTeamSelect(){
+let _teamOff=null;
+function listenTeams(room){
+  if(_teamOff){_teamOff();_teamOff=null}
+  if(!room){renderTeamButtons(null);return}
+  _teamOff=firebase.database().ref('treasure_hunt/'+room+'/game/teams').on('value',s=>{renderTeamButtons(s.val())},e=>{})
+}
+function renderTeamButtons(teams){
   const b=document.getElementById('teamSelectBtns');if(!b)return;
-  b.innerHTML=[1,2,3,4,5,6,7].map(i=>`<button class="bg-gray-700 text-sm font-bold py-3 px-2 rounded-xl transition-all" onclick="joinTeam(${i})">Đội ${i}</button>`).join('');
-  const n=document.getElementById('setupPlayerName');const s=localStorage.getItem('playerNameLast')||'';if(n&&s)n.value=s;
-  const ri=document.getElementById('roomCodeInput');
-  // Auto-fill room from URL param first, then localStorage
-  const urlRoom=new URLSearchParams(location.search).get('room');
-  if(urlRoom){ri.value=urlRoom;localStorage.setItem('lastRoom',urlRoom)}
-  else{const lr=localStorage.getItem('lastRoom');if(ri&&lr)ri.value=lr}
+  if(!teams||!teams.length){b.innerHTML='<div class="col-span-4 text-xs text-gray-600 py-4">🔍 Nhập mã phòng để hiện danh sách đội</div>';return}
+  b.innerHTML=teams.map(t=>`<button class="bg-gray-700 hover:bg-red-600 active:scale-95 text-sm font-bold py-3 px-2 rounded-xl transition-all" onclick="joinTeam(${t.id})">${t.name}</button>`).join('');
   validateRoomInput()
 }
 function initTeamSelect(){
   const b=document.getElementById('teamSelectBtns');if(!b)return;
-  b.innerHTML=[1,2,3,4,5,6,7].map(i=>`<button class="bg-gray-700 hover:bg-red-600 active:scale-95 text-sm font-bold py-3 px-2 rounded-xl transition-all" onclick="joinTeam(${i})">Đội ${i}</button>`).join('');
   const n=document.getElementById('setupPlayerName');const s=localStorage.getItem('playerNameLast')||'';if(n&&s)n.value=s;
   const ri=document.getElementById('roomCodeInput');
-  // Auto-fill room from URL param first, then localStorage
   const urlRoom=new URLSearchParams(location.search).get('room');
   if(urlRoom){ri.value=urlRoom;localStorage.setItem('lastRoom',urlRoom)}
   else{const lr=localStorage.getItem('lastRoom');if(ri&&lr)ri.value=lr}
+  // Listen to teams from room in real-time
+  listenTeams(ri.value.trim()||urlRoom);
+  // Re-listen when room input changes
+  ri.oninput=function(){
+    validateRoomInput();
+    listenTeams(this.value.trim())
+  }
 }
 function hideWaitingOverlay(){const w=document.getElementById('waitingOverlay');if(w)w.classList.add('hidden');const n=document.getElementById('myTeamNum');if(n)n.textContent=G.myTeamId||''}
 function showWaitingOverlay(){const w=document.getElementById('waitingOverlay');if(w)w.classList.remove('hidden');document.getElementById('myTeamNum').textContent=G.myTeamId||'';updateTeamNameEditor()}
@@ -808,6 +819,41 @@ function renderSetupPlayers(){
   if(!el)return;
   if(G.connectedPlayers.length===0)el.innerHTML='<div class="text-xs text-gray-600">Đang chờ người chơi kết nối...</div>';
   else el.innerHTML=G.connectedPlayers.map(p=>`<div class="flex justify-between text-xs bg-gray-800/40 rounded-lg px-2 py-1.5"><span class="text-gray-300">${p.name}</span><span class="text-gray-500">${G.teamNames[p.teamId]||`Đội ${p.teamId}`}</span></div>`).join('');
+  renderSetupTeams()
+}
+function renderSetupTeams(){
+  const mgmt=document.getElementById('teamManagement');
+  if(mgmt){
+    if(G.hostRole)mgmt.classList.remove('hidden');
+    const list=document.getElementById('setupTeamList');
+    if(list){
+      if(!G.teams||!G.teams.length)list.innerHTML='<div class="text-xs text-gray-600">Chưa có đội nào. Ấn "Thêm đội" để tạo.</div>';
+      else list.innerHTML=G.teams.map(t=>{
+        const cnt=(G.connectedPlayers||[]).filter(p=>p.teamId===t.id).length;
+        const canRemove=cnt===0;
+        return `<div class="flex justify-between items-center text-xs bg-gray-800/40 rounded-lg px-2 py-1.5"><span class="text-gray-300">${t.name}</span><span class="flex items-center gap-2"><span class="text-gray-500">${cnt} 👤</span>${canRemove?`<button class="text-red-400 hover:text-red-300 text-xs" onclick="removeTeam(${t.id})">✕</button>`:''}</span></div>`
+      }).join('')
+    }
+  }
+}
+function addTeam(){
+  const maxId=G.teams&&G.teams.length?Math.max(...G.teams.map(t=>t.id)):0;
+  const newId=maxId+1;
+  if(!G.teams)G.teams=[];
+  if(newId>50){toast('❌ Tối đa 50 đội!');return}
+  G.teams.push({id:newId,name:`Đội ${newId}`});
+  syncGameState();
+  renderSetupTeams();
+  toast(`➕ Đã thêm Đội ${newId}`)
+}
+function removeTeam(teamId){
+  const cnt=(G.connectedPlayers||[]).filter(p=>p.teamId===teamId).length;
+  if(cnt>0){toast('❌ Không thể xóa đội đang có người chơi!');return}
+  G.teams=G.teams.filter(t=>t.id!==teamId);
+  if(!G.teams.length)G.teams.push({id:1,name:'Đội 1'});
+  syncGameState();
+  renderSetupTeams();
+  toast(`🗑️ Đã xóa đội`)
 }
 
 // ========== FIREBASE LISTENERS ==========
@@ -871,7 +917,7 @@ function attachListeners(){
           G.phase='setup';G.pos={r:0,c:0};G.moveCount=0;G.board=[];G.currentCell=null;
           G.fiftyFiftyCount=0;G.cups=0;G.myTeamId=null;G.myPlayerName='';
           clearIdentity();
-          for(let i=1;i<=7;i++)localStorage.removeItem('teamName'+i);
+          for(let i=1;i<=50;i++)localStorage.removeItem('teamName'+i);
           localStorage.removeItem('playerNameLast');
           hideWaitingOverlay();showScreen('role-screen');
         }
@@ -965,7 +1011,7 @@ function confirmTeamName(){
   const badge=document.getElementById('playerTeamBadge');
   if(badge)badge.textContent=val;
   document.getElementById('myTeamNum').textContent=val;
-  DB_PLAYERS.child('p_'+G.myTeamId+'/teamName').set(val).catch(e=>{});
+  DB_PLAYERS.child(G.myPlayerId+'/teamName').set(val).catch(e=>{});
 }
 
 // ========== SWIPE ==========
@@ -996,14 +1042,8 @@ document.addEventListener('keydown',e=>{
 // ========== START / RESET ==========
 function startGame(){
   try{
-    G.teams=[];
-    if(G.connectedPlayers.length===0){
-      for(let i=1;i<=7;i++){G.teams.push({id:i,name:G.teamNames[i]||`Đội ${i}`})}
-    } else {
-      G.connectedPlayers.forEach(p=>{
-        if(!G.teams.find(t=>t.id===p.teamId))G.teams.push({id:p.teamId,name:G.teamNames[p.teamId]||p.name})
-      });
-    }
+    // Ensure teams exist (if setup has no teams yet, create defaults)
+    if(!G.teams||!G.teams.length){G.teams=[{id:1,name:'Đội 1'},{id:2,name:'Đội 2'}]}
     G.teams.forEach(t=>{G.teamCups[t.id]=0});
     G.board=generateBoard();G.phase='playing';G.currentCell=null;G.currentTarget=null;
     document.getElementById('hostSetup').classList.add('hidden');
@@ -1019,9 +1059,9 @@ function resetGame(){
   clearFirebase();
   G.phase='setup';G.eventLog=[];G.connectedPlayers=[];G.board=[];G.currentCell=null;G.currentTarget=null;
   G.filterActive=false;G.fiftyFiftyCount=0;G.cups=0;G.teamCups={};G.teamNames={};G.teamCaptains={};
-  G.hostRole=false;G.myTeamId=null;G.myPlayerName='';G.pos={r:0,c:0};G.moveCount=0;
+  G.hostRole=false;G.myTeamId=null;G.myPlayerName='';G.pos={r:0,c:0};G.moveCount=0;G.teams=[];
   clearIdentity();
-  for(let i=1;i<=7;i++)localStorage.removeItem('teamName'+i);localStorage.removeItem('playerNameLast');
+  for(let i=1;i<=30;i++)localStorage.removeItem('teamName'+i);localStorage.removeItem('playerNameLast');
   showScreen('role-screen')
 }
 
@@ -1060,12 +1100,12 @@ function init(){
     generateQR(roomId);
     document.title='Host - '+roomId+' - Treasure Hunt';
     if(localStorage.getItem('hostRoom'))localStorage.removeItem('hostRoom');
-    G.phase='setup';G.board=[];renderBoard();renderSetupPlayers();
+    G.phase='setup';G.board=[];G.teams=[{id:1,name:'Đội 1'},{id:2,name:'Đội 2'}];renderBoard();renderSetupPlayers();
     attachListeners();syncGameState();saveIdentity();
   }else if(role==='player'){
     if(!roomId){showScreen('role-screen');toast('⚠️ Cần mã phòng! Quét QR hoặc nhập mã từ Host.',3000);return}
     G.myTeamId=parseInt(new URLSearchParams(location.search).get('id'))||0;
-    if(G.myTeamId<1||G.myTeamId>7){showScreen('team-select-screen');initTeamSelect();return}
+    if(G.myTeamId<1){showScreen('team-select-screen');initTeamSelect();return}
     showScreen('player-screen');
     G.roomId=roomId;
     // Generate or restore unique player ID
@@ -1088,7 +1128,7 @@ function init(){
     attachListeners();saveIdentity();
   }else{
     clearIdentity();
-    for(let i=1;i<=7;i++)localStorage.removeItem('teamName'+i);localStorage.removeItem('playerNameLast');
+    for(let i=1;i<=50;i++)localStorage.removeItem('teamName'+i);localStorage.removeItem('playerNameLast');
     // Auto-redirect if identity exists
     const hostRoom=localStorage.getItem('hostRoom');
     if(hostRoom){showScreen('role-screen')}
