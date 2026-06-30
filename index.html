@@ -87,12 +87,16 @@ input[type="text"]:focus{box-shadow:0 0 10px rgba(245,158,11,.25);border-color:#
       <h2 class="text-yellow-400 font-bold text-sm mb-3">👥 Người chơi đã kết nối</h2>
       <div id="setupPlayerList" class="text-sm space-y-1 min-h-[2rem]"></div>
       <div id="roomCodeDisplay" class="mt-3 mb-3 hidden">
-        <p class="text-xs text-gray-500 mb-1">🔑 Mã phòng — gửi mã này cho người chơi:</p>
-        <div class="flex gap-2 items-center">
-          <span id="roomCodeValue" class="text-xl font-black text-yellow-400 tracking-widest select-all bg-gray-900/50 px-4 py-1.5 rounded-lg"></span>
-          <button class="text-xs bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded transition" onclick="copyRoomCode()">📋 Copy</button>
+        <p class="text-xs text-gray-500 mb-1">🔑 Quét QR hoặc nhập mã phòng:</p>
+        <div class="flex flex-col items-center gap-3">
+          <div id="qrContainer" class="bg-white rounded-xl p-2 shadow-lg cursor-pointer" onclick="copyRoomCode()" title="Bấm để copy link">
+            <img id="qrImage" src="" alt="QR" class="w-36 h-36 md:w-40 md:h-40">
+          </div>
+          <div class="flex gap-2 items-center">
+            <span id="roomCodeValue" class="text-xl font-black text-yellow-400 tracking-widest select-all bg-gray-900/50 px-4 py-1.5 rounded-lg"></span>
+            <button class="text-xs bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded transition" onclick="copyRoomCode()">📋 Copy</button>
+          </div>
         </div>
-        <p class="text-xs text-gray-600 mt-1">Mở <span class="text-yellow-400 font-semibold">?role=player&id=1..7&room=...</span> trên tab khác</p>
       </div>
       <button class="mt-4 w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-bold py-3 rounded-xl transition text-lg" onclick="startGame()">🚀 Bắt đầu</button>
     </div>
@@ -167,7 +171,7 @@ input[type="text"]:focus{box-shadow:0 0 10px rgba(245,158,11,.25);border-color:#
   <p class="text-gray-400 text-sm mb-6">Game truy tìm kho báu nhiều người chơi</p>
   <button class="w-56 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-bold py-3 rounded-xl mb-3 transition" onclick="showPasswordModal()">🎮 Máy chủ (Host)</button>
   <button class="w-56 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3 rounded-xl transition" onclick="showScreen('team-select-screen');initTeamSelect()">🎮 Người chơi</button>
-  <p class="text-gray-600 text-xs mt-4">🌐 Đã hỗ trợ online — chơi được trên nhiều máy khác nhau!</p>
+  <p class="text-gray-600 text-xs mt-4">🌐 Online — quét QR từ màn hình Host để vào game!</p>
 </div>
 
 <!-- ===== TEAM SELECT ===== -->
@@ -350,7 +354,11 @@ function initTeamSelect(){
   const b=document.getElementById('teamSelectBtns');if(!b)return;
   b.innerHTML=[1,2,3,4,5,6,7].map(i=>`<button class="bg-gray-700 hover:bg-red-600 active:scale-95 text-sm font-bold py-3 px-2 rounded-xl transition-all" onclick="joinTeam(${i})">Đội ${i}</button>`).join('');
   const n=document.getElementById('setupPlayerName');const s=localStorage.getItem('playerNameLast')||'';if(n&&s)n.value=s;
-  const ri=document.getElementById('roomCodeInput');const lr=localStorage.getItem('lastRoom');if(ri&&lr)ri.value=lr
+  const ri=document.getElementById('roomCodeInput');
+  // Auto-fill room from URL param first, then localStorage
+  const urlRoom=new URLSearchParams(location.search).get('room');
+  if(urlRoom){ri.value=urlRoom;localStorage.setItem('lastRoom',urlRoom)}
+  else{const lr=localStorage.getItem('lastRoom');if(ri&&lr)ri.value=lr}
 }
 function hideWaitingOverlay(){const w=document.getElementById('waitingOverlay');if(w)w.classList.add('hidden');const n=document.getElementById('myTeamNum');if(n)n.textContent=G.myTeamId||''}
 function showWaitingOverlay(){const w=document.getElementById('waitingOverlay');if(w)w.classList.remove('hidden');document.getElementById('myTeamNum').textContent=G.myTeamId||'';updateTeamNameEditor()}
@@ -990,9 +998,19 @@ function setupDisconnect(){
   DB_PLAYERS.child('p_'+G.myTeamId).onDisconnect().update({online:false}).catch(e=>{});
 }
 
+function getGameUrl(){return window.location.origin+window.location.pathname}
+function getPlayerUrl(room){return getGameUrl()+'?room='+room}
+function generateQR(room){
+  const url=getPlayerUrl(room);
+  const img=document.getElementById('qrImage');
+  if(img)img.src='https://api.qrserver.com/v1/create-qr-code/?size=300x300&data='+encodeURIComponent(url)
+}
 function copyRoomCode(){
-  const val=document.getElementById('roomCodeValue')?.textContent;
-  if(val)navigator.clipboard.writeText(val).then(()=>toast('📋 Đã copy mã phòng!')).catch(()=>toast('📋 Mã: '+val))
+  const room=document.getElementById('roomCodeValue')?.textContent;
+  if(room){
+    const fullUrl=getPlayerUrl(room);
+    navigator.clipboard.writeText(fullUrl).then(()=>toast('📋 Đã copy link!')).catch(()=>toast('📋 Link: '+fullUrl))
+  }
 }
 
 // ========== INIT ==========
@@ -1003,9 +1021,10 @@ function init(){
   const role=new URLSearchParams(location.search).get('role');
   if(role==='host'){
     G.hostRole=true;G.roomId=roomId;showScreen('host-screen');
-    // Show room code
+    // Show room code + QR
     document.getElementById('roomCodeDisplay').classList.remove('hidden');
     document.getElementById('roomCodeValue').textContent=roomId;
+    generateQR(roomId);
     document.title='Host - '+roomId+' - Treasure Hunt';
     if(localStorage.getItem('hostRoom'))localStorage.removeItem('hostRoom');
     G.phase='setup';G.board=[];renderBoard();renderSetupPlayers();
