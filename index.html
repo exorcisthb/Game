@@ -328,7 +328,8 @@ let G={
   connectedPlayers:[],currentPlayerIndex:0,currentTarget:null,currentCell:null,
   pos:{r:0,c:0},prevPos:null,moveCount:0,eventLog:[],
   filterActive:false,fiftyFiftyCount:0,teamCaptains:{},teamNames:{},cups:0,teamCups:{},
-  hostRole:false,myTeamId:0,myPlayerName:'',isCaptain:false,charAnimTimeout:null,touchStart:null,
+  hostRole:false,myTeamId:0,myPlayerName:'',myPlayerId:'',teamPlayerCount:{},
+  isCaptain:false,charAnimTimeout:null,touchStart:null,
   questionMinimized:false,questionData:null,questionAnswers:null,
   roomId:'default',fbListenersAttached:false,fbPendingInit:false
 };
@@ -338,6 +339,7 @@ const DB_REF=DB.ref('treasure_hunt/'+roomId);
 const DB_GAME=DB_REF.child('game');
 const DB_PLAYERS=DB_REF.child('players');
 let fbHostInitDone=false,fbPlayerInitDone=false;
+function pid(){return 'p_'+G.myTeamId+'_'+Math.random().toString(36).substring(2,7)}
 
 // ========== HELPERS ==========
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.random()*i|0;[a[i],a[j]]=[a[j],a[i]]}return a}
@@ -393,11 +395,11 @@ function syncGameState(){
   }).catch(e=>{})
 }
 function syncPlayer(){
-  const p={name:G.myPlayerName,teamId:G.myTeamId,online:true,
+  const p={name:G.myPlayerName,teamId:G.myTeamId,online:true,playerId:G.myPlayerId,
     pos:G.pos,prevPos:G.prevPos,moveCount:G.moveCount,
     cups:G.cups,fiftyFiftyCount:G.fiftyFiftyCount,phase:G.phase,
     teamName:localStorage.getItem('teamName'+G.myTeamId)||''};
-  DB_PLAYERS.child('p_'+G.myTeamId).set(p).catch(e=>{})
+  DB_PLAYERS.child(G.myPlayerId).set(p).catch(e=>{})
 }
 function clearFirebase(){DB_REF.remove().catch(e=>{})}
 
@@ -406,13 +408,13 @@ function saveIdentity(){
   try{
     if(G.hostRole)localStorage.setItem('thHostIdentity',JSON.stringify({roomId:G.roomId}));
     else if(G.myTeamId)localStorage.setItem('thPlayerIdentity'+G.myTeamId,JSON.stringify({
-      myPlayerName:G.myPlayerName,roomId:G.roomId,myTeamId:G.myTeamId
+      myPlayerName:G.myPlayerName,roomId:G.roomId,myTeamId:G.myTeamId,myPlayerId:G.myPlayerId
     }));
   }catch(e){}
 }
 function clearIdentity(){
   try{['thHostIdentity',...Array.from({length:7},(_,i)=>'thPlayerIdentity'+(i+1)),
-    'hostRoom','lastRoom'].forEach(k=>localStorage.removeItem(k))}catch(e){}
+    'hostRoom','lastRoom',...Array.from({length:7},(_,i)=>'thPlayerId_'+(i+1))].forEach(k=>localStorage.removeItem(k))}catch(e){}
 }
 
 // ========== BOARD GEN WITH BFS ==========
@@ -698,7 +700,7 @@ function movePlayer(dr,dc){
   renderBoard();syncPlayer();
   if(cell.type==='finish'){
     G.cups++;G.phase='finished';
-      toast(`🏆 Đã hoàn thành! Đội nhận 1 cúp!`);renderBoard();updateCupDisplay();syncPlayer();
+    toast(`🏆 Đã hoàn thành! Đội nhận 1 cúp!`);renderBoard();updateCupDisplay();syncPlayer();
     const vp=document.getElementById('boardViewport');
     let ov=vp.querySelector('.finish-overlay');
     if(!ov){ov=document.createElement('div');ov.className='finish-overlay absolute inset-0 flex items-center justify-center bg-gray-900/70 z-10 rounded-xl';ov.innerHTML='<div class="text-center"><div class="text-6xl mb-2">🏆</div><div class="text-yellow-400 font-bold text-lg">ĐÃ HOÀN THÀNH!</div><div class="text-gray-400 text-sm mt-1">Đội nhận 1 cúp</div></div>';vp.style.position='relative';vp.appendChild(ov)}
@@ -749,15 +751,17 @@ function renderDashboard(){
   G.teams.forEach(t=>{
     const cups=G.teamCups[t.id]||0;
     const players=G.connectedPlayers.filter(p=>p.teamId===t.id);
+    const totalPlayers=G.teamPlayerCount[t.id]||players.length;
+    const pct=totalPlayers>0?Math.min(100,cups/totalPlayers*100):0;
     c.innerHTML+=`<div class="bg-gray-800/60 rounded-xl p-3 border border-gray-700">
       <div class="flex justify-between items-center mb-1">
         <span class="font-bold text-yellow-400 text-sm">${t.name}</span>
         <span class="text-xs text-gray-400">${players.map(p=>p.name).join(', ')||'—'}</span>
       </div>
-      <div class="progress-bar mt-1"><div class="progress-fill bg-gradient-to-r from-yellow-500 to-yellow-400" style="width:${Math.min(100,cups/7*100)}%"></div></div>
+      <div class="progress-bar mt-1"><div class="progress-fill bg-gradient-to-r from-yellow-500 to-yellow-400" style="width:${Math.min(100,pct)}%"></div></div>
       <div class="flex justify-between text-xs text-gray-600 mt-0.5">
-        <span>🏆 ${cups} cúp</span>
-        <span>${players.length} người chơi</span>
+        <span>🏆 ${cups}/${totalPlayers} cúp</span>
+        <span>${totalPlayers} người chơi</span>
       </div>
     </div>`
   });
@@ -790,21 +794,24 @@ function attachListeners(){
     let prevPlayerKeys={};
     DB_PLAYERS.on('value',snap=>{
       const data=snap.val();if(!data)return;
-      const connected=[],cups={};let newPlayers=[];
+      const connected=[],cups={},teamCounts={};let newPlayers=[];
       Object.keys(data).forEach(k=>{
         const p=data[k];
         if(!p||!p.online)return;
-        connected.push({teamId:p.teamId,name:p.name});
-        cups[p.teamId]=Math.max(cups[p.teamId]||0,p.cups||0);
+        connected.push({teamId:p.teamId,name:p.name,playerId:p.playerId||k});
+        cups[p.teamId]=(cups[p.teamId]||0)+(p.cups||0);
+        if(!teamCounts[p.teamId])teamCounts[p.teamId]=0;
+        teamCounts[p.teamId]++;
         if(!G.teamCaptains[p.teamId])G.teamCaptains[p.teamId]=p.name;
         if(p.teamName&&(!G.teamNames[p.teamId]||G.teamNames[p.teamId]!==p.teamName))G.teamNames[p.teamId]=p.teamName;
         if(!prevPlayerKeys[k])newPlayers.push(p);
         prevPlayerKeys[k]=true;
       });
+      G.teamPlayerCount=teamCounts;
       // Clean stale keys
       Object.keys(prevPlayerKeys).forEach(k=>{if(!data[k])delete prevPlayerKeys[k]});
       G.connectedPlayers=connected;
-      Object.assign(G.teamCups,cups);
+      G.teamCups=cups;
       newPlayers.forEach(p=>addEvent(`✅ ${p.name} (Đội ${p.teamId}) đã vào game!`,'good'));
       renderDashboard();renderSetupPlayers();
       // If game is already started, sync full state back so new players get it
@@ -914,7 +921,7 @@ function updateTeamNameEditor(){
 function renameTeam(val){
   const input=document.getElementById('teamNameInput');
   if(input)input.dataset.userEdited='1';
-  DB_PLAYERS.child('p_'+G.myTeamId+'/teamName').set(val||`Đội ${G.myTeamId}`).catch(e=>{});
+  DB_PLAYERS.child(G.myPlayerId+'/teamName').set(val||`Đội ${G.myTeamId}`).catch(e=>{});
   const badge=document.getElementById('playerTeamBadge');
   if(badge)badge.textContent=val||`Đội ${G.myTeamId}`;
   document.getElementById('myTeamNum').textContent=val||G.myTeamId;
@@ -995,7 +1002,7 @@ function resetGame(){
 // ========== FIREBASE ON-DISCONNECT ==========
 function setupDisconnect(){
   if(G.hostRole)return;
-  DB_PLAYERS.child('p_'+G.myTeamId).onDisconnect().update({online:false}).catch(e=>{});
+  DB_PLAYERS.child(G.myPlayerId).onDisconnect().update({online:false}).catch(e=>{});
 }
 
 function getGameUrl(){return window.location.origin+window.location.pathname}
@@ -1034,19 +1041,21 @@ function init(){
     if(G.myTeamId<1||G.myTeamId>7){showScreen('team-select-screen');initTeamSelect();return}
     showScreen('player-screen');
     G.roomId=roomId;
-    // Restore identity from localStorage
-    const savedIdentity=localStorage.getItem('thPlayerIdentity'+G.myTeamId);
-    if(savedIdentity){try{const d=JSON.parse(savedIdentity);if(d.roomId===roomId)Object.assign(G,d)}catch(e){}}
+    // Generate or restore unique player ID
+    const savedIdKey='thPlayerId_'+G.myTeamId;
+    let savedPid=localStorage.getItem(savedIdKey);
+    if(savedPid&&savedPid.startsWith('p_'+G.myTeamId+'_')){G.myPlayerId=savedPid}
+    else{G.myPlayerId=pid();localStorage.setItem(savedIdKey,G.myPlayerId)}
     G.cups=0;G.fiftyFiftyCount=0;G.phase='setup';
     const savedName=localStorage.getItem('teamName'+G.myTeamId);
     G.myPlayerName=localStorage.getItem('playerName'+G.myTeamId)||`Đội ${G.myTeamId}`;
     document.getElementById('playerTeamBadge').textContent=savedName||`Đội ${G.myTeamId}`;
     renderBoard();showWaitingOverlay();updateCupDisplay();
     // Write player presence to Firebase
-    DB_PLAYERS.child('p_'+G.myTeamId).set({
+    DB_PLAYERS.child(G.myPlayerId).set({
       name:G.myPlayerName,teamId:G.myTeamId,online:true,phase:'setup',
       pos:G.pos,moveCount:G.moveCount,cups:0,fiftyFiftyCount:0,
-      teamName:savedName||''
+      teamName:savedName||'',playerId:G.myPlayerId
     }).catch(e=>{});
     setupDisconnect();
     attachListeners();saveIdentity();
