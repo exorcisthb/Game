@@ -6,6 +6,8 @@
 <title>Treasure Hunt — Multiplayer Board Game</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Nunito',sans-serif;background:radial-gradient(circle at top,#1e2640 0%,#0d111b 100%);color:#e0e0e0;height:100vh;overflow:hidden}
@@ -84,6 +86,14 @@ input[type="text"]:focus{box-shadow:0 0 10px rgba(245,158,11,.25);border-color:#
     <div class="bg-gray-800/60 rounded-xl p-4 mb-4 border border-gray-700 text-left">
       <h2 class="text-yellow-400 font-bold text-sm mb-3">👥 Người chơi đã kết nối</h2>
       <div id="setupPlayerList" class="text-sm space-y-1 min-h-[2rem]"></div>
+      <div id="roomCodeDisplay" class="mt-3 mb-3 hidden">
+        <p class="text-xs text-gray-500 mb-1">🔑 Mã phòng — gửi mã này cho người chơi:</p>
+        <div class="flex gap-2 items-center">
+          <span id="roomCodeValue" class="text-xl font-black text-yellow-400 tracking-widest select-all bg-gray-900/50 px-4 py-1.5 rounded-lg"></span>
+          <button class="text-xs bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded transition" onclick="copyRoomCode()">📋 Copy</button>
+        </div>
+        <p class="text-xs text-gray-600 mt-1">Mở <span class="text-yellow-400 font-semibold">?role=player&id=1..7&room=...</span> trên tab khác</p>
+      </div>
       <button class="mt-4 w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-bold py-3 rounded-xl transition text-lg" onclick="startGame()">🚀 Bắt đầu</button>
     </div>
   </div>
@@ -157,14 +167,15 @@ input[type="text"]:focus{box-shadow:0 0 10px rgba(245,158,11,.25);border-color:#
   <p class="text-gray-400 text-sm mb-6">Game truy tìm kho báu nhiều người chơi</p>
   <button class="w-56 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-bold py-3 rounded-xl mb-3 transition" onclick="showPasswordModal()">🎮 Máy chủ (Host)</button>
   <button class="w-56 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3 rounded-xl transition" onclick="showScreen('team-select-screen');initTeamSelect()">🎮 Người chơi</button>
-  <p class="text-gray-600 text-xs mt-4">Trên cùng máy? Mở nhiều tab trình duyệt.</p>
+  <p class="text-gray-600 text-xs mt-4">🌐 Đã hỗ trợ online — chơi được trên nhiều máy khác nhau!</p>
 </div>
 
 <!-- ===== TEAM SELECT ===== -->
 <div id="team-select-screen" class="screen flex flex-col items-center justify-center min-h-screen p-6 text-center">
   <h1 class="text-2xl font-black text-yellow-400 mb-2">🎮 Chọn đội của bạn</h1>
   <p class="text-gray-400 text-sm mb-4">Nhập tên và chọn số đội</p>
-  <input type="text" id="setupPlayerName" placeholder="Nhập tên của bạn..." maxlength="20" class="bg-gray-900 border border-gray-700 rounded-xl px-4 py-2.5 text-center text-gray-300 outline-none focus:border-yellow-400 w-56 mb-5">
+  <input type="text" id="setupPlayerName" placeholder="Nhập tên của bạn..." maxlength="20" class="bg-gray-900 border border-gray-700 rounded-xl px-4 py-2.5 text-center text-gray-300 outline-none focus:border-yellow-400 w-56 mb-2">
+  <input type="text" id="roomCodeInput" placeholder="Nhập mã phòng (để trống = mặc định)" maxlength="10" class="bg-gray-900 border border-gray-700 rounded-xl px-4 py-2 text-center text-gray-300 outline-none focus:border-yellow-400 w-56 mb-4 text-sm">
   <div id="teamSelectBtns" class="grid grid-cols-4 gap-2 w-full max-w-xs"></div>
   <button class="mt-6 text-xs text-gray-600 hover:text-gray-400 transition" onclick="showScreen('role-screen')">← Quay lại</button>
 </div>
@@ -294,6 +305,19 @@ const QUESTIONS=[
   {q:'Bản chất thực sự của lợi nhuận là gì?',a:'Là sự sáng tạo của nhà tư bản',b:'Là hình thái biến tướng của giá trị thặng dư',c:'Là kết quả của may mắn',d:'Là sự đóng góp của người tiêu dùng',ans:'B'}
 ];
 
+// ========== FIREBASE ==========
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDBh-i26t2ILOhrIuhbQBetxAj2xsTPAhk",
+  authDomain: "game-bca4b.firebaseapp.com",
+  databaseURL: "https://game-bca4b-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "game-bca4b",
+  storageBucket: "game-bca4b.firebasestorage.app",
+  messagingSenderId: "824009619759",
+  appId: "1:824009619759:web:bcc7ca8868ba32743349da"
+};
+firebase.initializeApp(FIREBASE_CONFIG);
+const DB = firebase.database();
+
 // ========== STATE ==========
 let G={
   phase:'setup',board:[],teams:[],teamPositions:{},teamMoveCount:{},teamProgress:{},
@@ -301,44 +325,33 @@ let G={
   pos:{r:0,c:0},prevPos:null,moveCount:0,eventLog:[],
   filterActive:false,fiftyFiftyCount:0,teamCaptains:{},teamNames:{},cups:0,teamCups:{},
   hostRole:false,myTeamId:0,myPlayerName:'',isCaptain:false,charAnimTimeout:null,touchStart:null,
-  questionMinimized:false,questionData:null,questionAnswers:null
+  questionMinimized:false,questionData:null,questionAnswers:null,
+  roomId:'default',fbListenersAttached:false,fbPendingInit:false
 };
-const channel=new BroadcastChannel('treasure-hunt');
-
-// ========== SESSION PERSISTENCE ==========
-function saveSession(){
-  try{
-    if(G.hostRole){
-      const data={phase:G.phase,board:G.board,teams:G.teams,teamNames:G.teamNames,teamCaptains:G.teamCaptains,connectedPlayers:G.connectedPlayers,teamCups:G.teamCups,eventLog:G.eventLog.slice(0,20)};
-      localStorage.setItem('thHost',JSON.stringify(data));
-    } else if(G.myTeamId){
-      const data={phase:G.phase,myTeamId:G.myTeamId,myPlayerName:G.myPlayerName,cups:G.cups,pos:G.pos,moveCount:G.moveCount,fiftyFiftyCount:G.fiftyFiftyCount,board:G.board};
-      localStorage.setItem('thPlayer'+G.myTeamId,JSON.stringify(data));
-    }
-  }catch(e){}
-}
-function clearSession(){
-  try{for(let i=1;i<=7;i++)localStorage.removeItem('thPlayer'+i);localStorage.removeItem('thHost')}catch(e){}
-}
-function loadSession(){
-  try{
-    if(G.hostRole){
-      const raw=localStorage.getItem('thHost');if(!raw)return false;
-      const data=JSON.parse(raw);if(data.phase==='setup')return false;
-      Object.assign(G,data);return true;
-    } else if(G.myTeamId){
-      const raw=localStorage.getItem('thPlayer'+G.myTeamId);if(!raw)return false;
-      const data=JSON.parse(raw);Object.assign(G,data);return true;
-    }
-  }catch(e){}
-  return false;
-}
+const roomId=new URLSearchParams(location.search).get('room')||'default';
+G.roomId=roomId;
+const DB_REF=DB.ref('treasure_hunt/'+roomId);
+const DB_GAME=DB_REF.child('game');
+const DB_PLAYERS=DB_REF.child('players');
+let fbHostInitDone=false,fbPlayerInitDone=false;
 
 // ========== HELPERS ==========
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.random()*i|0;[a[i],a[j]]=[a[j],a[i]]}return a}
 function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));const el=document.getElementById(id);if(el)el.classList.add('active')}
-function joinTeam(teamId){const ni=document.getElementById('setupPlayerName');const n=ni?ni.value.trim():'';const f=n||`Đội ${teamId}`;localStorage.setItem('playerName'+teamId,f);localStorage.setItem('playerNameLast',f);location.href='?role=player&id='+teamId}
-function initTeamSelect(){const b=document.getElementById('teamSelectBtns');if(!b)return;b.innerHTML=[1,2,3,4,5,6,7].map(i=>`<button class="bg-gray-700 hover:bg-red-600 active:scale-95 text-sm font-bold py-3 px-2 rounded-xl transition-all" onclick="joinTeam(${i})">Đội ${i}</button>`).join('');const n=document.getElementById('setupPlayerName');const s=localStorage.getItem('playerNameLast')||'';if(n&&s)n.value=s}
+function joinTeam(teamId){
+  const ni=document.getElementById('setupPlayerName');const n=ni?ni.value.trim():'';
+  const f=n||`Đội ${teamId}`;localStorage.setItem('playerName'+teamId,f);localStorage.setItem('playerNameLast',f);
+  const ri=document.getElementById('roomCodeInput');const room=ri?ri.value.trim():'';
+  const qp=new URLSearchParams(location.search);qp.set('role','player');qp.set('id',teamId);
+  if(room){qp.set('room',room);localStorage.setItem('lastRoom',room)}
+  location.href='?'+qp.toString()
+}
+function initTeamSelect(){
+  const b=document.getElementById('teamSelectBtns');if(!b)return;
+  b.innerHTML=[1,2,3,4,5,6,7].map(i=>`<button class="bg-gray-700 hover:bg-red-600 active:scale-95 text-sm font-bold py-3 px-2 rounded-xl transition-all" onclick="joinTeam(${i})">Đội ${i}</button>`).join('');
+  const n=document.getElementById('setupPlayerName');const s=localStorage.getItem('playerNameLast')||'';if(n&&s)n.value=s;
+  const ri=document.getElementById('roomCodeInput');const lr=localStorage.getItem('lastRoom');if(ri&&lr)ri.value=lr
+}
 function hideWaitingOverlay(){const w=document.getElementById('waitingOverlay');if(w)w.classList.add('hidden');const n=document.getElementById('myTeamNum');if(n)n.textContent=G.myTeamId||''}
 function showWaitingOverlay(){const w=document.getElementById('waitingOverlay');if(w)w.classList.remove('hidden');document.getElementById('myTeamNum').textContent=G.myTeamId||'';updateTeamNameEditor()}
 
@@ -353,10 +366,46 @@ function closePlayerModal(){closeModal('playerModal');G.questionMinimized=false;
 function closeHostModal(){closeModal('hostModal')}
 function showPasswordModal(){document.getElementById('passwordModal').classList.add('active');document.getElementById('hostPasswordInput').value='';document.getElementById('passwordError').classList.add('hidden');setTimeout(()=>document.getElementById('hostPasswordInput').focus(),100)}
 function closePasswordModal(){document.getElementById('passwordModal').classList.remove('active')}
-function checkPassword(){const pwd=document.getElementById('hostPasswordInput').value;if(pwd==='3636'){closePasswordModal();location.href='?role=host'}else{document.getElementById('passwordError').classList.remove('hidden')}}
+function checkPassword(){
+  const pwd=document.getElementById('hostPasswordInput').value;
+  if(pwd==='3636'){
+    closePasswordModal();
+    const room=Math.random().toString(36).substring(2,7).toUpperCase();
+    localStorage.setItem('hostRoom',room);
+    location.href='?role=host&room='+room
+  } else {document.getElementById('passwordError').classList.remove('hidden')}
+}
 function minimizeQuestion(){if(!G.currentCell)return;G.questionMinimized=true;closeModal('playerModal');document.getElementById('questionMinimized')?.classList.remove('hidden')}
 function restoreQuestion(){G.questionMinimized=false;document.getElementById('questionMinimized')?.classList.add('hidden');if(G.questionData&&G.questionAnswers)showLocalQuestion(G.questionData)}
-function broadcast(msg){try{channel.postMessage(msg)}catch(e){}}
+function syncGameState(){
+  DB_GAME.set({
+    phase:G.phase,board:G.board,teams:G.teams,teamNames:G.teamNames,
+    teamCaptains:G.teamCaptains,
+    eventLog:G.eventLog.slice(0,20),connectedPlayers:G.connectedPlayers
+  }).catch(e=>{})
+}
+function syncPlayer(){
+  const p={name:G.myPlayerName,teamId:G.myTeamId,online:true,
+    pos:G.pos,prevPos:G.prevPos,moveCount:G.moveCount,
+    cups:G.cups,fiftyFiftyCount:G.fiftyFiftyCount,phase:G.phase,
+    teamName:localStorage.getItem('teamName'+G.myTeamId)||''};
+  DB_PLAYERS.child('p_'+G.myTeamId).set(p).catch(e=>{})
+}
+function clearFirebase(){DB_REF.remove().catch(e=>{})}
+
+// Keep localStorage for player identity only
+function saveIdentity(){
+  try{
+    if(G.hostRole)localStorage.setItem('thHostIdentity',JSON.stringify({roomId:G.roomId}));
+    else if(G.myTeamId)localStorage.setItem('thPlayerIdentity'+G.myTeamId,JSON.stringify({
+      myPlayerName:G.myPlayerName,roomId:G.roomId,myTeamId:G.myTeamId
+    }));
+  }catch(e){}
+}
+function clearIdentity(){
+  try{['thHostIdentity',...Array.from({length:7},(_,i)=>'thPlayerIdentity'+(i+1)),
+    'hostRoom','lastRoom'].forEach(k=>localStorage.removeItem(k))}catch(e){}
+}
 
 // ========== BOARD GEN WITH BFS ==========
 function hasValidPath(board){
@@ -638,11 +687,10 @@ function movePlayer(dr,dc){
   G.prevPos={...G.pos};G.pos={r:nr,c:nc};G.moveCount++;
   const dir=dr===0?(dc>0?'right':'left'):(dr>0?'down':'up');
   setCharAnim(dir);
-  renderBoard();saveSession();
+  renderBoard();syncPlayer();
   if(cell.type==='finish'){
     G.cups++;G.phase='finished';
-    broadcast({type:'cup-update',teamId:G.myTeamId,cups:G.cups});
-    toast(`🏆 Đã hoàn thành! Đội nhận 1 cúp!`);renderBoard();updateCupDisplay();saveSession();
+      toast(`🏆 Đã hoàn thành! Đội nhận 1 cúp!`);renderBoard();updateCupDisplay();syncPlayer();
     const vp=document.getElementById('boardViewport');
     let ov=vp.querySelector('.finish-overlay');
     if(!ov){ov=document.createElement('div');ov.className='finish-overlay absolute inset-0 flex items-center justify-center bg-gray-900/70 z-10 rounded-xl';ov.innerHTML='<div class="text-center"><div class="text-6xl mb-2">🏆</div><div class="text-yellow-400 font-bold text-lg">ĐÃ HOÀN THÀNH!</div><div class="text-gray-400 text-sm mt-1">Đội nhận 1 cúp</div></div>';vp.style.position='relative';vp.appendChild(ov)}
@@ -651,7 +699,10 @@ function movePlayer(dr,dc){
   if(cell.type==='question'){
     if(cell.isHelp){
       G.fiftyFiftyCount++;G.board[nr][nc]={type:'empty',data:null};
-      toast('✂️ Nhận được 50/50!');renderBoard();updateFiftyBtn();return
+      toast('✂️ Nhận được 50/50!');renderBoard();updateFiftyBtn();syncPlayer();
+      // Sync board change to firebase
+      DB_GAME.child('board/'+nr+'/'+nc+'/type').set('empty').catch(e=>{});
+      return
     }
     G.currentCell={r:nr,c:nc,cell};
     cell.data={...QUESTIONS[Math.random()*QUESTIONS.length|0]};
@@ -674,12 +725,13 @@ function localAnswer(el,label){
   btns.forEach(b=>b.disabled=true);
   if(correct){
     el.classList.add('bg-green-600');toast('✅ Chính xác!');
-    G.board[G.currentCell.r][G.currentCell.c]={type:'empty',data:null}
+    G.board[G.currentCell.r][G.currentCell.c]={type:'empty',data:null};
+    DB_GAME.child('board/'+G.currentCell.r+'/'+G.currentCell.c+'/type').set('empty').catch(e=>{})
   }else{
     el.classList.add('bg-red-600');toast('❌ Sai! Lùi lại!');
     G.pos={...G.prevPos}
   }
-  G.currentCell=null;G.questionMinimized=false;G.questionData=null;G.questionAnswers=null;closePlayerModal();renderBoard()
+  G.currentCell=null;G.questionMinimized=false;G.questionData=null;G.questionAnswers=null;closePlayerModal();renderBoard();syncPlayer()
 }
 
 // ========== HOST DASHBOARD ==========
@@ -723,65 +775,86 @@ function renderSetupPlayers(){
   else el.innerHTML=G.connectedPlayers.map(p=>`<div class="flex justify-between text-xs bg-gray-800/40 rounded-lg px-2 py-1.5"><span class="text-gray-300">${p.name}</span><span class="text-gray-500">${G.teamNames[p.teamId]||`Đội ${p.teamId}`}</span></div>`).join('');
 }
 
-// ========== BROADCAST HANDLING ==========
-channel.onmessage=function(e){
-  const msg=e.data;if(!msg||!msg.type)return;
-  if(G.hostRole)handleHostMsg(msg);else if(G.myTeamId)handlePlayerMsg(msg)
-};
-
-function handleHostMsg(msg){
-  switch(msg.type){
-    case 'player-ready':
-      if(!G.connectedPlayers.find(p=>p.teamId===msg.teamId&&p.name===msg.playerName)){
-        G.connectedPlayers.push({teamId:msg.teamId,name:msg.playerName});
-        if(!G.teamCaptains[msg.teamId])G.teamCaptains[msg.teamId]=msg.playerName;
-        renderDashboard();
-        if(G.phase==='setup')renderSetupPlayers();
-        addEvent(`✅ ${msg.playerName} (Đội ${msg.teamId}) đã vào game!`,'good');
-        saveSession();
+// ========== FIREBASE LISTENERS ==========
+function attachListeners(){
+  if(G.fbListenersAttached)return;G.fbListenersAttached=true;
+  if(G.hostRole){
+    let prevPlayerKeys={};
+    DB_PLAYERS.on('value',snap=>{
+      const data=snap.val();if(!data)return;
+      const connected=[],cups={};let newPlayers=[];
+      Object.keys(data).forEach(k=>{
+        const p=data[k];
+        if(!p||!p.online)return;
+        connected.push({teamId:p.teamId,name:p.name});
+        cups[p.teamId]=Math.max(cups[p.teamId]||0,p.cups||0);
+        if(!G.teamCaptains[p.teamId])G.teamCaptains[p.teamId]=p.name;
+        if(p.teamName&&(!G.teamNames[p.teamId]||G.teamNames[p.teamId]!==p.teamName))G.teamNames[p.teamId]=p.teamName;
+        if(!prevPlayerKeys[k])newPlayers.push(p);
+        prevPlayerKeys[k]=true;
+      });
+      // Clean stale keys
+      Object.keys(prevPlayerKeys).forEach(k=>{if(!data[k])delete prevPlayerKeys[k]});
+      G.connectedPlayers=connected;
+      Object.assign(G.teamCups,cups);
+      newPlayers.forEach(p=>addEvent(`✅ ${p.name} (Đội ${p.teamId}) đã vào game!`,'good'));
+      renderDashboard();renderSetupPlayers();
+      // If game is already started, sync full state back so new players get it
+      if(G.phase==='playing'){syncGameState()}
+    });
+    DB_GAME.on('value',snap=>{
+      const data=snap.val();
+      if(!data&&fbHostInitDone){
+        // Game was deleted (reset)
+        G.phase='setup';G.eventLog=[];G.board=[];G.currentCell=null;
+        document.getElementById('hostSetup').classList.remove('hidden');
+        document.getElementById('hostDashboard').classList.add('hidden');
+        renderDashboard();return
       }
-      if(G.phase==='setup')broadcast({type:'state-sync',phase:G.phase,teams:G.teams,teamCaptains:G.teamCaptains,teamNames:G.teamNames});
-      else broadcast({type:'state-sync',phase:G.phase,board:G.board,teams:G.teams,teamCaptains:G.teamCaptains,teamNames:G.teamNames,teamCups:G.teamCups});
-      break;
-    case 'rename-team':
-      G.teamNames[msg.teamId]=msg.name;
-      const existingTeam=G.teams.find(t=>t.id===msg.teamId);
-      if(existingTeam)existingTeam.name=msg.name;
-      broadcast({type:'state-sync',phase:G.phase,board:G.board,teams:G.teams,teamCaptains:G.teamCaptains,teamNames:G.teamNames,teamCups:G.teamCups});
-      renderDashboard();saveSession();
-      break;
-    case 'cup-update':
-      if(!G.teamCups[msg.teamId]||msg.cups>G.teamCups[msg.teamId])G.teamCups[msg.teamId]=msg.cups;
-      renderDashboard();saveSession();
-      break;
-    case 'help-collected':
-      if(G.board[msg.cellR]&&G.board[msg.cellR][msg.cellC])G.board[msg.cellR][msg.cellC]={type:'empty',data:null};
-      addEvent(`✂️ Đội ${msg.teamId} nhặt được 50/50`,'info');renderDashboard();
-      break;
-  }
-}
-
-function handlePlayerMsg(msg){
-  switch(msg.type){
-    case 'state-sync':
-      if(msg.board)G.board=msg.board;
-      if(msg.teams)G.teams=msg.teams;
-      if(msg.teamCaptains)G.teamCaptains=msg.teamCaptains;
-      if(msg.teamNames)G.teamNames=msg.teamNames;
-      if(msg.teamCups)G.teamCups=msg.teamCups;
+      if(!data){fbHostInitDone=true;return}
+      if(data.phase==='playing'&&data.board&&data.board.length){
+        G.phase=data.phase;G.board=data.board;
+        if(data.teams)G.teams=data.teams;
+        if(data.teamNames)G.teamNames=data.teamNames;
+        if(data.teamCaptains)G.teamCaptains=data.teamCaptains;
+        if(data.eventLog&&data.eventLog.length>G.eventLog.length)G.eventLog=data.eventLog;
+        document.getElementById('hostSetup').classList.add('hidden');
+        document.getElementById('hostDashboard').classList.remove('hidden');
+        renderDashboard();renderBoard();
+      }
+      fbHostInitDone=true;
+    });
+  } else if(G.myTeamId){
+    DB_GAME.on('value',snap=>{
+      const data=snap.val();
+      // Reset detection
+      if(!data){
+        if(fbPlayerInitDone){
+          G.phase='setup';G.pos={r:0,c:0};G.moveCount=0;G.board=[];G.currentCell=null;
+          G.fiftyFiftyCount=0;G.cups=0;G.myTeamId=null;G.myPlayerName='';
+          clearIdentity();
+          for(let i=1;i<=7;i++)localStorage.removeItem('teamName'+i);
+          localStorage.removeItem('playerNameLast');
+          hideWaitingOverlay();showScreen('role-screen');
+        }
+        fbPlayerInitDone=true;return
+      }
+      let changed=false;
+      if(data.board&&data.board.length){
+        if(!G.board.length||JSON.stringify(G.board)!==JSON.stringify(data.board)){
+          G.board=data.board;changed=true
+        }
+      }
+      if(data.teams){G.teams=data.teams}
+      if(data.teamNames)G.teamNames=data.teamNames;
+      if(data.teamCaptains)G.teamCaptains=data.teamCaptains;
+      if(data.phase&&data.phase!==G.phase){
+        G.phase=data.phase;changed=true
+      }
       if(G.board.length){hideWaitingOverlay();renderBoard()}
-      break;
-    case 'game-start':
-      G.phase='playing';G.teams=msg.teams||[];
-      if(msg.board&&msg.board.length&&!G.board.length){G.board=msg.board}
-      hideWaitingOverlay();if(G.board.length)renderBoard();
-      break;
-    case 'host-reset':
-      G.phase='setup';G.pos={r:0,c:0};G.moveCount=0;G.board=[];G.currentCell=null;
-      G.fiftyFiftyCount=0;G.myTeamId=null;G.myPlayerName='';
-      clearSession();for(let i=1;i<=7;i++)localStorage.removeItem('teamName'+i);localStorage.removeItem('playerNameLast');
-      hideWaitingOverlay();showScreen('role-screen');
-      break;
+      if(changed)renderBoard();
+      fbPlayerInitDone=true;
+    });
   }
 }
 
@@ -813,7 +886,6 @@ function useFiftyFifty(){
 function updateCupDisplay(){
   const el=document.getElementById('cupCount');
   if(el)el.textContent=`${G.cups}`;
-  if(!G.hostRole){broadcast({type:'cup-update',teamId:G.myTeamId,cups:G.cups});saveSession()}
 }
 
 function updateTeamNameEditor(){
@@ -834,7 +906,7 @@ function updateTeamNameEditor(){
 function renameTeam(val){
   const input=document.getElementById('teamNameInput');
   if(input)input.dataset.userEdited='1';
-  broadcast({type:'rename-team',teamId:G.myTeamId,name:val||`Đội ${G.myTeamId}`});
+  DB_PLAYERS.child('p_'+G.myTeamId+'/teamName').set(val||`Đội ${G.myTeamId}`).catch(e=>{});
   const badge=document.getElementById('playerTeamBadge');
   if(badge)badge.textContent=val||`Đội ${G.myTeamId}`;
   document.getElementById('myTeamNum').textContent=val||G.myTeamId;
@@ -852,7 +924,7 @@ function confirmTeamName(){
   const badge=document.getElementById('playerTeamBadge');
   if(badge)badge.textContent=val;
   document.getElementById('myTeamNum').textContent=val;
-  broadcast({type:'rename-team',teamId:G.myTeamId,name:val});
+  DB_PLAYERS.child('p_'+G.myTeamId+'/teamName').set(val).catch(e=>{});
 }
 
 // ========== SWIPE ==========
@@ -895,18 +967,32 @@ function startGame(){
     G.board=generateBoard();G.phase='playing';G.currentCell=null;G.currentTarget=null;
     document.getElementById('hostSetup').classList.add('hidden');
     document.getElementById('hostDashboard').classList.remove('hidden');
-    renderDashboard();renderBoard();addEvent('🎮 Game bắt đầu!','good');saveSession();
-    broadcast({type:'state-sync',phase:G.phase,board:G.board,teams:G.teams,teamCaptains:G.teamCaptains,teamNames:G.teamNames,teamCups:G.teamCups})
+    renderDashboard();renderBoard();addEvent('🎮 Game bắt đầu!','good');
+    syncGameState()
   }catch(e){toast('Lỗi: '+e.message)}
 }
 
 function resetGame(){
   if(!confirm('Reset game?'))return;
+  G.fbListenersAttached=false;fbHostInitDone=false;fbPlayerInitDone=false;
+  clearFirebase();
   G.phase='setup';G.eventLog=[];G.connectedPlayers=[];G.board=[];G.currentCell=null;G.currentTarget=null;
   G.filterActive=false;G.fiftyFiftyCount=0;G.cups=0;G.teamCups={};G.teamNames={};G.teamCaptains={};
   G.hostRole=false;G.myTeamId=null;G.myPlayerName='';G.pos={r:0,c:0};G.moveCount=0;
-  clearSession();for(let i=1;i<=7;i++)localStorage.removeItem('teamName'+i);localStorage.removeItem('playerNameLast');
-  broadcast({type:'host-reset'});showScreen('role-screen')
+  clearIdentity();
+  for(let i=1;i<=7;i++)localStorage.removeItem('teamName'+i);localStorage.removeItem('playerNameLast');
+  showScreen('role-screen')
+}
+
+// ========== FIREBASE ON-DISCONNECT ==========
+function setupDisconnect(){
+  if(G.hostRole)return;
+  DB_PLAYERS.child('p_'+G.myTeamId).onDisconnect().update({online:false}).catch(e=>{});
+}
+
+function copyRoomCode(){
+  const val=document.getElementById('roomCodeValue')?.textContent;
+  if(val)navigator.clipboard.writeText(val).then(()=>toast('📋 Đã copy mã phòng!')).catch(()=>toast('📋 Mã: '+val))
 }
 
 // ========== INIT ==========
@@ -916,32 +1002,43 @@ function init(){
   }
   const role=new URLSearchParams(location.search).get('role');
   if(role==='host'){
-    G.hostRole=true;showScreen('host-screen');
-    if(loadSession()){
-      if(G.phase==='playing'||G.phase==='won'){document.getElementById('hostSetup').classList.add('hidden');document.getElementById('hostDashboard').classList.remove('hidden');renderDashboard();renderBoard();broadcast({type:'state-sync',phase:G.phase,board:G.board,teams:G.teams,teamCaptains:G.teamCaptains,teamNames:G.teamNames,teamCups:G.teamCups});return}
-    }
-    G.phase='setup';G.board=[];renderBoard();
-    renderSetupPlayers();
-    broadcast({type:'state-sync',phase:G.phase});saveSession();
+    G.hostRole=true;G.roomId=roomId;showScreen('host-screen');
+    // Show room code
+    document.getElementById('roomCodeDisplay').classList.remove('hidden');
+    document.getElementById('roomCodeValue').textContent=roomId;
+    document.title='Host - '+roomId+' - Treasure Hunt';
+    if(localStorage.getItem('hostRoom'))localStorage.removeItem('hostRoom');
+    G.phase='setup';G.board=[];renderBoard();renderSetupPlayers();
+    attachListeners();syncGameState();saveIdentity();
   }else if(role==='player'){
     G.myTeamId=parseInt(new URLSearchParams(location.search).get('id'))||0;
     if(G.myTeamId<1||G.myTeamId>7){showScreen('team-select-screen');initTeamSelect();return}
     showScreen('player-screen');
-    if(loadSession()){
-      const savedName=localStorage.getItem('teamName'+G.myTeamId);
-      document.getElementById('playerTeamBadge').textContent=savedName||`Đội ${G.myTeamId}`;
-      G.board=[];G.phase='setup';
-      updateCupDisplay();renderBoard();showWaitingOverlay();
-      broadcast({type:'player-ready',teamId:G.myTeamId,playerName:G.myPlayerName});
-      return
-    }
-    G.cups=0;G.phase='setup';
+    G.roomId=roomId;
+    // Restore identity from localStorage
+    const savedIdentity=localStorage.getItem('thPlayerIdentity'+G.myTeamId);
+    if(savedIdentity){try{const d=JSON.parse(savedIdentity);if(d.roomId===roomId)Object.assign(G,d)}catch(e){}}
+    G.cups=0;G.fiftyFiftyCount=0;G.phase='setup';
+    const savedName=localStorage.getItem('teamName'+G.myTeamId);
     G.myPlayerName=localStorage.getItem('playerName'+G.myTeamId)||`Đội ${G.myTeamId}`;
-    G.isCaptain=!localStorage.getItem('teamName'+G.myTeamId);
-    document.getElementById('playerTeamBadge').textContent=localStorage.getItem('teamName'+G.myTeamId)||`Đội ${G.myTeamId}`;
+    document.getElementById('playerTeamBadge').textContent=savedName||`Đội ${G.myTeamId}`;
     renderBoard();showWaitingOverlay();updateCupDisplay();
-    broadcast({type:'player-ready',teamId:G.myTeamId,playerName:G.myPlayerName});
-  }else{clearSession();for(let i=1;i<=7;i++)localStorage.removeItem('teamName'+i);localStorage.removeItem('playerNameLast');showScreen('role-screen')}
+    // Write player presence to Firebase
+    DB_PLAYERS.child('p_'+G.myTeamId).set({
+      name:G.myPlayerName,teamId:G.myTeamId,online:true,phase:'setup',
+      pos:G.pos,moveCount:G.moveCount,cups:0,fiftyFiftyCount:0,
+      teamName:savedName||''
+    }).catch(e=>{});
+    setupDisconnect();
+    attachListeners();saveIdentity();
+  }else{
+    clearIdentity();
+    for(let i=1;i<=7;i++)localStorage.removeItem('teamName'+i);localStorage.removeItem('playerNameLast');
+    // Auto-redirect if identity exists
+    const hostRoom=localStorage.getItem('hostRoom');
+    if(hostRoom){showScreen('role-screen')}
+    else showScreen('role-screen')
+  }
 }
 
 init();
