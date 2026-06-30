@@ -1027,7 +1027,7 @@ function setupDisconnect(){
 }
 
 function getGameUrl(){return window.location.origin+window.location.pathname}
-function getPlayerUrl(room){return getGameUrl()+'?room='+room}
+function getPlayerUrl(room){return getGameUrl()+'?role=player&room='+room}
 function generateQR(room){
   const url=getPlayerUrl(room);
   const img=document.getElementById('qrImage');
