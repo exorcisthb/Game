@@ -1101,15 +1101,30 @@ function init(){
     document.title='Host - '+roomId+' - Treasure Hunt';
     if(localStorage.getItem('hostRoom'))localStorage.removeItem('hostRoom');
     G.phase='setup';G.board=[];
-    // Restore teams from Firebase session (persist qua reload)
+    // Restore full session từ Firebase (phase, teams, board...)
     DB_GAME.once('value').then(snap=>{
       const data=snap.val();
-      if(data&&data.teams&&data.teams.length){G.teams=data.teams;if(data.teamNames)G.teamNames=data.teamNames;if(data.teamCaptains)G.teamCaptains=data.teamCaptains;if(data.eventLog)G.eventLog=data.eventLog;if(data.connectedPlayers)G.connectedPlayers=data.connectedPlayers}
-      else{G.teams=[{id:1,name:'Đội 1'},{id:2,name:'Đội 2'}]}
-      renderBoard();renderSetupPlayers();
-      attachListeners();syncGameState();saveIdentity();
+      const isNew=!data||!data.teams||!data.teams.length;
+      if(!isNew){
+        G.teams=data.teams;G.phase=data.phase||'setup';
+        if(data.teamNames)G.teamNames=data.teamNames;
+        if(data.teamCaptains)G.teamCaptains=data.teamCaptains;
+        if(data.eventLog)G.eventLog=data.eventLog;
+        if(data.board)G.board=data.board
+      }else{G.teams=[{id:1,name:'Đội 1'},{id:2,name:'Đội 2'}];G.phase='setup'}
+      // Nếu game đang chạy → dashboard ngay, không ghi đè phase
+      if(G.phase==='playing'){
+        document.getElementById('hostSetup').classList.add('hidden');
+        document.getElementById('hostDashboard').classList.remove('hidden');
+        renderBoard();renderDashboard()
+      }else{
+        renderBoard();renderSetupPlayers()
+      }
+      attachListeners();
+      if(isNew||G.phase!=='playing')syncGameState(); // chỉ ghi nếu chưa chạy
+      saveIdentity();
     }).catch(()=>{
-      G.teams=[{id:1,name:'Đội 1'},{id:2,name:'Đội 2'}];
+      G.teams=[{id:1,name:'Đội 1'},{id:2,name:'Đội 2'}];G.phase='setup';
       renderBoard();renderSetupPlayers();
       attachListeners();syncGameState();saveIdentity()
     });
