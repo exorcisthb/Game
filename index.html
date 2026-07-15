@@ -72,6 +72,8 @@ button:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,0.35)}
 button:active{transform:translateY(1px)}
 input[type="text"]{transition:all .2s ease}
 input[type="text"]:focus{box-shadow:0 0 10px rgba(245,158,11,.25);border-color:#fbbf24!important}
+input[type="password"]{transition:all .2s ease}
+input[type="password"]:focus{box-shadow:0 0 10px rgba(245,158,11,.25);border-color:#fbbf24!important}
 
 /* ===== SCROLLBAR ===== */
 ::-webkit-scrollbar{width:8px;height:8px}
@@ -100,11 +102,11 @@ input[type="text"]:focus{box-shadow:0 0 10px rgba(245,158,11,.25);border-color:#
   <div class="flex-1 overflow-y-auto">
     <h2 class="text-lg font-bold text-yellow-400 mb-3 text-center">🏆 Bảng xếp hạng Realtime</h2>
     
-    <!-- Podium top 3 -->
-    <div id="landingPodium" class="flex items-end justify-center gap-2 mb-4 h-28"></div>
-    
-    <!-- Ranking list -->
-    <div id="landingRankingList" class="space-y-1 mb-4"></div>
+    <div class="text-center my-6">
+      <button class="flex items-center gap-2 mx-auto bg-yellow-400/10 hover:bg-yellow-400/20 border border-yellow-500/30 rounded-full px-5 py-2.5 transition text-yellow-400 font-bold" onclick="openRankingFromLanding()">
+        🏆 Xem bảng xếp hạng
+      </button>
+    </div>
   </div>
 
   <!-- Play Button -->
@@ -120,7 +122,8 @@ input[type="text"]:focus{box-shadow:0 0 10px rgba(245,158,11,.25);border-color:#
   <div class="modal-box text-center">
     <h3 class="text-yellow-400 font-bold text-lg mb-2">👋 Chào mừng!</h3>
     <p class="text-gray-400 text-sm mb-4">Nhập tên của bạn để bắt đầu chơi</p>
-    <input type="text" id="playNameInput" placeholder="Tên của bạn..." maxlength="20" class="bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-center text-gray-300 outline-none focus:border-yellow-400 w-full mb-2 text-base" onkeydown="if(event.key==='Enter')submitPlayName()">
+    <input type="text" id="playNameInput" placeholder="Tên của bạn..." maxlength="20" class="bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-center text-gray-300 outline-none focus:border-yellow-400 w-full mb-2 text-base" onkeydown="if(event.key==='Enter')document.getElementById('playPassInput').focus()">
+    <input type="password" id="playPassInput" placeholder="Mật khẩu..." maxlength="50" class="bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-center text-gray-300 outline-none focus:border-yellow-400 w-full mb-2 text-base" onkeydown="if(event.key==='Enter')submitPlayName()">
     <div id="playNameError" class="text-red-400 text-xs mb-3 hidden"></div>
     <div class="flex gap-2">
       <button class="flex-1 bg-gray-700 hover:bg-gray-600 text-white text-sm py-2.5 rounded-lg transition" onclick="closePlayModal()">✕ Hủy</button>
@@ -143,7 +146,7 @@ input[type="text"]:focus{box-shadow:0 0 10px rgba(245,158,11,.25);border-color:#
     <div class="bg-gray-800/60 rounded-2xl p-5 mb-4 space-y-2">
       <div class="flex justify-between items-center">
         <span class="text-gray-400 text-sm">Cúp vừa nhận:</span>
-        <span class="text-yellow-400 font-bold text-lg">+1 🏆</span>
+        <span class="text-yellow-400 font-bold text-lg" id="resultCupGained">+1 🏆</span>
       </div>
       <div class="flex justify-between items-center">
         <span class="text-gray-400 text-sm">Tổng số cúp:</span>
@@ -174,9 +177,12 @@ input[type="text"]:focus{box-shadow:0 0 10px rgba(245,158,11,.25);border-color:#
 <!-- ===== PLAYER SCREEN (main game) ===== -->
 <div id="player-screen" class="screen h-screen flex flex-col">
   <div class="flex items-center justify-between px-2 py-1 bg-gray-900/80 shrink-0">
-    <div class="flex items-center gap-1.5">
-      <span id="playerNameBadge" class="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full font-bold">Người chơi</span>
-      <span class="text-xs text-gray-500">Bước: <b id="moveCount" class="text-gray-300">0</b></span>
+    <div class="flex flex-col items-start gap-0">
+      <div class="flex items-center gap-1.5">
+        <span id="playerNameBadge" class="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full font-bold">Người chơi</span>
+        <span class="text-xs text-gray-500">Bước: <b id="moveCount" class="text-gray-300">0</b></span>
+      </div>
+      <button class="text-[11px] text-gray-400 hover:text-yellow-400 bg-gray-800/60 hover:bg-gray-700/60 border border-gray-700 rounded-full px-2.5 py-1 transition flex items-center gap-1 mt-1 w-fit" onclick="confirmRename()">← Quay lại</button>
     </div>
     <div class="flex items-center gap-1.5">
       <button id="miniRankBtn" class="flex items-center gap-1 text-xs bg-yellow-400/10 hover:bg-yellow-400/20 border border-yellow-500/30 rounded-full px-2.5 py-1 transition" onclick="showScreen('ranking-screen')">
@@ -186,9 +192,11 @@ input[type="text"]:focus{box-shadow:0 0 10px rgba(245,158,11,.25);border-color:#
   </div>
 
   <div class="flex-1 flex items-center justify-center min-h-0 overflow-hidden">
-    <div id="boardViewport" class="shadow-xl relative">
-      <div id="questionMinimized" class="absolute top-1 right-1 z-10 hidden cursor-pointer bg-gray-800 border border-yellow-500 rounded-full w-7 h-7 flex items-center justify-center text-sm shadow-lg hover:bg-gray-700 transition" onclick="restoreQuestion()">❓</div>
-      <div id="boardGrid"></div>
+    <div class="relative">
+      <div id="boardViewport" class="shadow-xl relative">
+        <div id="boardGrid"></div>
+      </div>
+      <div id="questionMinimized" class="absolute -top-2 -right-2 z-20 hidden cursor-pointer bg-gray-800 border-2 border-yellow-500 rounded-full w-8 h-8 flex items-center justify-center text-base shadow-lg hover:bg-gray-700 transition" onclick="restoreQuestion()">❓</div>
     </div>
   </div>
 
@@ -206,6 +214,9 @@ input[type="text"]:focus{box-shadow:0 0 10px rgba(245,158,11,.25);border-color:#
       <div id="playerModalContent"></div>
     </div>
   </div>
+  <div class="modal-overlay" id="backConfirmModal" onclick="if(event.target===this)closeModal('backConfirmModal')">
+    <div class="modal-box"></div>
+  </div>
 </div>
 
 <!-- ===== ROLE SCREEN (backup - not used in new flow) ===== -->
@@ -221,7 +232,7 @@ input[type="text"]:focus{box-shadow:0 0 10px rgba(245,158,11,.25);border-color:#
 <div id="ranking-screen" class="screen flex flex-col min-h-screen p-4">
   <div class="flex items-center justify-between mb-3">
     <h1 class="text-xl font-black text-yellow-400">🏆 Bảng xếp hạng</h1>
-    <button class="text-xs bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded-lg transition" onclick="showScreen('player-screen')">← Quay lại chơi</button>
+    <button id="rankingBackBtn" class="text-xs bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded-lg transition" onclick="backFromRanking()">← Quay lại chơi</button>
   </div>
 
   <!-- Podium top 3 -->
@@ -376,7 +387,8 @@ let G={
   charAnimTimeout:null,touchStart:null,
   questionMinimized:false,questionData:null,questionAnswers:null,
   usedQTexts:[],
-  leaderboardData:[]
+  leaderboardData:[],
+  rankingFrom:'',lastCupGained:true
 };
 function pid(){return 'p_'+Math.random().toString(36).substring(2,10)}
 function loadIdentity(){
@@ -392,6 +404,13 @@ function saveIdentity(){
   try{localStorage.setItem('thSoloIdentity',JSON.stringify({myPlayerName:G.myPlayerName,myPlayerId:G.myPlayerId,cups:G.cups,fiftyFiftyCount:G.fiftyFiftyCount}))}catch(e){}
 }
 function clearIdentity(){try{localStorage.removeItem('thSoloIdentity')}catch(e){}}
+
+async function hashPassword(pw){
+  if(!pw)return'';
+  const enc=new TextEncoder().encode(pw);
+  const buf=await crypto.subtle.digest('SHA-256',enc);
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('')
+}
 
 // ========== HELPERS ==========
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.random()*i|0;[a[i],a[j]]=[a[j],a[i]]}return a}
@@ -849,12 +868,14 @@ function movePlayer(dr,dc){
   setCharAnim(dir);
   renderBoard();syncPlayer();
   if(cell.type==='finish'){
-    G.cups++;G.phase='finished';
+    G.lastCupGained=G.cups<999;
+    if(G.lastCupGained)G.cups++;
+    G.phase='finished';
     updateCupDisplay();
     updatePlayerCups(G.cups);
     saveIdentity();
     
-    toast(`🏆 Hoàn thành! Nhận 1 cúp! Tổng: ${G.cups}`,3000);
+    toast(G.lastCupGained?`🏆 Hoàn thành! Nhận 1 cúp! Tổng: ${G.cups}`:`🏆 Hoàn thành! Bạn đã đạt mức cúp tối đa (999)!`,3000);
     
     // Show result screen after a brief delay
     setTimeout(()=>{
@@ -944,10 +965,11 @@ function updateCupDisplay(){
 
 // ========== FIREBASE SYNC ==========
 function syncPlayer(){
-  DB_PLAYERS.child(G.myPlayerId).update({
+  const updates={
     name:G.myPlayerName,playerId:G.myPlayerId,cups:G.cups,fiftyFiftyCount:G.fiftyFiftyCount,
     online:true,lastActive:firebase.database.ServerValue.TIMESTAMP
-  }).catch(e=>{})
+  };
+  DB_PLAYERS.child(G.myPlayerId).update(updates).catch(e=>{})
 }
 function updatePlayerCups(val){
   G.cups=val;saveIdentity();
@@ -974,14 +996,15 @@ function listenLeaderboard(){
 }
 
 function renderAllRankings(){
-  // Render for all places where ranking is shown
-  renderLandingRanking(); // Landing page
-  renderRankingScreen();   // Ranking screen
-  updateMiniRank();        // Mini rank in player screen
+  renderRankingScreen();
+  updateMiniRank();
 }
 
 function renderRankingScreen(){
-  renderPodium();renderRankingList();renderMyRank()
+  renderPodium();renderRankingList();renderMyRank();
+  // Update back button label based on origin
+  const btn=document.getElementById('rankingBackBtn');
+  if(btn)btn.textContent=G.rankingFrom==='landing'?'← Quay lại':'← Quay lại chơi'
 }
 function renderPodium(){
   const el=document.getElementById('podium');if(!el)return;
@@ -1062,59 +1085,25 @@ function updateNameBadge(){
 }
 
 // ========== LANDING PAGE FUNCTIONS ==========
-function renderLandingRanking(){
-  renderLandingPodium();
-  renderLandingRankingList();
+function openRankingFromLanding(){
+  G.rankingFrom='landing';
+  showScreen('ranking-screen');
 }
 
-function renderLandingPodium(){
-  const el=document.getElementById('landingPodium');
-  if(!el)return;
-  const top=G.leaderboardData.slice(0,3);
-  if(!top.length){
-    el.innerHTML='<div class="text-xs text-gray-600 py-4 text-center w-full">Chưa có người chơi nào</div>';
-    return;
+function backFromRanking(){
+  if(G.rankingFrom==='landing'){
+    G.rankingFrom='';
+    showScreen('landing-screen');
+  }else{
+    showScreen('player-screen');
   }
-  const order=[1,0,2]; // 2nd, 1st, 3rd
-  el.innerHTML=order.map(i=>{
-    const p=top[i];
-    if(!p)return'<div class="flex-1"></div>';
-    const heights=[28,36,24];
-    const medals=['🥈','🥇','🥉'];
-    const colors=['bg-gray-600','bg-yellow-500','bg-amber-700'];
-    return `<div class="flex flex-col items-center gap-1 flex-1">
-      <div class="text-xl">${medals[i]}</div>
-      <div class="w-full ${colors[i]} rounded-t-lg flex flex-col items-center justify-end pb-1 pt-2" style="height:${heights[i]}px">
-        <span class="text-[10px] font-bold text-white truncate max-w-[80px] text-center leading-tight">${p.name||'Ẩn danh'}</span>
-        <span class="text-[9px] text-white/80">🏆${p.cups||0}</span>
-      </div>
-    </div>`
-  }).join('');
-}
-
-function renderLandingRankingList(){
-  const el=document.getElementById('landingRankingList');
-  if(!el)return;
-  if(!G.leaderboardData.length){
-    el.innerHTML='<div class="text-xs text-gray-600 py-8 text-center">Chưa có người chơi nào</div>';
-    return;
-  }
-  const topN=G.leaderboardData.slice(0,15); // Show top 15
-  el.innerHTML=topN.map((p,i)=>{
-    const rank=i+1;
-    const rankClass=rank<=3?'text-yellow-400 font-black':'text-gray-400 font-semibold';
-    return `<div class="flex items-center gap-2 bg-gray-800/40 rounded-lg px-3 py-2 text-xs">
-      <span class="${rankClass} w-6 text-center">#{rank}</span>
-      <span class="flex-1 text-gray-300 font-semibold truncate">${p.name||'Ẩn danh'}</span>
-      <span class="text-yellow-400 font-bold">🏆 ${p.cups||0}</span>
-    </div>`
-  }).join('');
 }
 
 // ========== PLAY MODAL (Landing → Name Input) ==========
 function openPlayModal(){
   document.getElementById('playModal').classList.add('active');
   document.getElementById('playNameInput').value='';
+  document.getElementById('playPassInput').value='';
   document.getElementById('playNameError').classList.add('hidden');
   setTimeout(()=>document.getElementById('playNameInput').focus(),100);
 }
@@ -1126,6 +1115,8 @@ function closePlayModal(){
 function submitPlayName(){
   const input=document.getElementById('playNameInput');
   const name=input?.value.trim();
+  const passInput=document.getElementById('playPassInput');
+  const password=passInput?.value||'';
   const errorEl=document.getElementById('playNameError');
   
   if(!name){
@@ -1140,27 +1131,63 @@ function submitPlayName(){
     return;
   }
   
-  // Check for duplicate names (STRICT - no restore option)
-  DB_PLAYERS.once('value').then(snap=>{
+  if(!password||password.length<4){
+    errorEl.textContent='⚠️ Vui lòng nhập mật khẩu (ít nhất 4 ký tự)!';
+    errorEl.classList.remove('hidden');
+    passInput.focus();
+    return;
+  }
+  
+  // Query Firebase for matching name
+  DB_PLAYERS.once('value').then(async snap=>{
     const data=snap.val();
+    const normalizedName=name.toLowerCase().trim();
+    let existingKey=null,existingData=null;
+    
     if(data){
-      const normalizedName=name.toLowerCase().trim();
-      const duplicate=Object.keys(data).find(k=>
+      existingKey=Object.keys(data).find(k=>
         data[k].name && data[k].name.toLowerCase().trim()===normalizedName
       );
-      
-      if(duplicate){
-        errorEl.textContent='⚠️ Tên này đã có người dùng, vui lòng chọn tên khác!';
-        errorEl.classList.remove('hidden');
-        return;
-      }
+      if(existingKey)existingData=data[existingKey];
     }
     
-    // Name is unique - create new player
-    createNewPlayer(name);
-    closePlayModal();
+    if(existingData){
+      // Name exists — verify password
+      const hashed=await hashPassword(password);
+      const storedPw=existingData.password||'';
+      
+      if(storedPw){
+        // Account has a password — must match
+        if(hashed!==storedPw){
+          errorEl.textContent='⚠️ Sai mật khẩu cho tên này!';
+          errorEl.classList.remove('hidden');
+          passInput.value='';
+          passInput.focus();
+          return;
+        }
+      }else{
+        // Legacy account (no password) — set first password now
+        DB_PLAYERS.child(existingKey+'/password').set(hashed).catch(e=>{})
+      }
+      
+      // Password OK — restore account
+      G.myPlayerName=existingData.name;
+      G.myPlayerId=existingData.playerId;
+      G.cups=existingData.cups||0;
+      G.fiftyFiftyCount=existingData.fiftyFiftyCount||0;
+      
+      saveIdentity();
+      closePlayModal();
+      enterGameDirect();
+      toast(`🎮 Chào mừng trở lại, ${G.myPlayerName}!`,3000);
+    }else{
+      // Name is new — create account (password optional)
+      createNewPlayer(name,password);
+      closePlayModal();
+    }
   }).catch(()=>{
-    createNewPlayer(name);
+    // Firebase error — allow offline play
+    createNewPlayer(name,password);
     closePlayModal();
   });
 }
@@ -1173,6 +1200,7 @@ function showResultScreen(){
   
   // Update result screen
   document.getElementById('resultTotalCups').textContent=`${G.cups} 🏆`;
+  document.getElementById('resultCupGained').textContent=G.lastCupGained?'+1 🏆':'+0 🏆 (đã max)';
   document.getElementById('resultMoveCount').textContent=G.moveCount;
   document.getElementById('resultRank').textContent=rank;
   
@@ -1242,13 +1270,18 @@ function init(){
   }
 }
 
-function createNewPlayer(name){
+async function createNewPlayer(name,password){
   G.myPlayerName=name;
   G.myPlayerId=pid();
   G.cups=0;
   G.fiftyFiftyCount=0;
   
   saveIdentity();
+  
+  // Save password hash to Firebase
+  const pwHash=await hashPassword(password);
+  DB_PLAYERS.child(G.myPlayerId+'/password').set(pwHash).catch(e=>{})
+  
   enterGameDirect();
   toast('🎮 Bắt đầu! Dùng phím mũi tên hoặc vuốt để di chuyển.',3000);
 }
@@ -1271,6 +1304,47 @@ function enterGameDirect(){
   document.getElementById('moveCount').textContent=G.moveCount;
   
   syncPlayer();
+}
+
+// ========== RENAME / SWITCH ACCOUNT ==========
+function confirmRename(){
+  showModal('backConfirmModal', `<div class="text-center">
+    <h3 class="text-yellow-400 font-bold text-lg mb-2">↩️ Quay lại màn hình nhập tên?</h3>
+    <p class="text-gray-400 text-sm mb-5">Tiến trình ván đang chơi sẽ mất, nhưng số cúp hiện tại của tài khoản vẫn được giữ nguyên.</p>
+    <div class="flex gap-2">
+      <button class="flex-1 bg-gray-700 hover:bg-gray-600 text-white text-sm py-2.5 rounded-lg transition" onclick="closeModal('backConfirmModal')">Hủy</button>
+      <button class="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-bold text-sm py-2.5 rounded-lg transition" onclick="closeModal('backConfirmModal');doConfirmedRename()">Quay lại</button>
+    </div>
+  </div>`);
+}
+
+function doConfirmedRename(){
+  // Reset game state
+  G.board=[];
+  G.pos={r:0,c:0};
+  G.prevPos=null;
+  G.moveCount=0;
+  G.currentCell=null;
+  G.phase='playing';
+  G.usedQTexts=[];
+  G.fiftyRemoved=[];
+  G.questionMinimized=false;
+  G.questionData=null;
+  G.questionAnswers=null;
+  
+  // Clear saved identity so they must re-login
+  clearIdentity();
+  G.myPlayerId='';
+  G.myPlayerName='';
+  G.cups=0;
+  G.fiftyFiftyCount=0;
+  
+  // Close any open modals
+  closePlayerModal();
+  
+  // Return to landing page
+  showScreen('landing-screen');
+  toast('🔄 Đã thoát. Nhập tên mới để chơi tiếp!',3000);
 }
 
 // OLD FUNCTIONS - kept for compatibility but not used in new flow
