@@ -1018,9 +1018,11 @@ function renderPodium(){
     const colors=['bg-gray-600','bg-yellow-500','bg-amber-700'];
     return `<div class="flex flex-col items-center gap-1 flex-1">
       <div class="text-xl">${medals[i]}</div>
-      <div class="w-full ${colors[i]} rounded-t-lg flex flex-col items-center justify-end pb-1 pt-2 ${isMe?'ring-2 ring-yellow-300':''}" style="height:${heights[i]}px">
-        <span class="text-[10px] font-bold text-white truncate max-w-[80px] text-center leading-tight">${p.name||'Ẩn danh'}</span>
-        <span class="text-[9px] text-white/80">🏆${p.cups||0}</span>
+      <div class="w-full ${colors[i]} rounded-t-lg flex flex-col items-center justify-end pb-1.5 pt-2 ${isMe?'ring-2 ring-yellow-300':''}" style="height:${heights[i]}px">
+        <div class="flex items-center gap-1">
+          <span class="text-[10px] font-bold text-white truncate max-w-[60px] text-center leading-tight">${p.name||'Ẩn danh'}</span>
+          <span class="text-[9px] text-white/80">🏆${p.cups||0}</span>
+        </div>
       </div>
     </div>`
   }).join('')
@@ -1033,7 +1035,8 @@ function renderRankingList(){
     const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}.`;
     return `<div class="flex items-center gap-2 ${isMe?'bg-yellow-400/10 border border-yellow-400/30 rounded-lg':'border-b border-gray-800'} px-3 py-2">
       <span class="w-7 text-center text-xs font-bold ${isMe?'text-yellow-400':i<3?'':'text-gray-500'}">${medal}</span>
-      <span class="flex-1 text-sm ${isMe?'text-yellow-300 font-bold':'text-gray-300'}">${p.name||'Ẩn danh'}${i<3?'':' — 🏆'+p.cups}</span>
+      <span class="flex-1 text-sm ${isMe?'text-yellow-300 font-bold':'text-gray-300'}">${p.name||'Ẩn danh'}</span>
+      <span class="text-xs font-bold ${isMe?'text-yellow-300':'text-yellow-400'}">🏆 ${p.cups||0}</span>
     </div>`
   }).join('')
 }
