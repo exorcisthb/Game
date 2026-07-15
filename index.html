@@ -266,9 +266,7 @@ const QUESTIONS=[
   {q:'Theo T.J. Dunning, mức lợi nhuận nào khiến tư bản "hành động bất chấp tội ác"?',a:'50%',b:'100%',c:'200%',d:'300%',ans:'C'},
   {q:'T.J. Dunning cho rằng với mức lợi nhuận 100%, tư bản sẽ làm gì?',a:'Sẵn sàng bị treo cổ',b:'Chà đạp lên mọi luật lệ',c:'Hoạt động từ thiện',d:'Cải tiến kỹ thuật',ans:'B'},
   {q:'Học thuyết nào là phát hiện vĩ đại nhất của C. Mác để vạch trần bản chất chủ nghĩa tư bản?',a:'Học thuyết về các hình thái kinh tế',b:'Học thuyết Giá trị thặng dư',c:'Học thuyết về tôn giáo',d:'Học thuyết về phân chia giai cấp',ans:'B'},
-  {q:'Lao động cụ thể tạo ra thuộc tính nào của hàng hóa?',a:'Giá trị',b:'Giá trị sử dụng',c:'Giá trị trao đổi',d:'Giá trị thặng dư',ans:'B'},
   {q:'Lao động trừu tượng là gì?',a:'Lao động của người thợ may',b:'Sự hao phí sức lao động nói chung (cơ bắp, thần kinh, trí óc)',c:'Lao động tạo ra công dụng của cái áo',d:'Lao động không có mục đích',ans:'B'},
-  {q:'Lượng giá trị của một đơn vị hàng hóa được đo bằng thước đo nào?',a:'Thời gian lao động cá biệt',b:'Thời gian lao động xã hội cần thiết',c:'Số lượng nguyên liệu tiêu hao',d:'Giá niêm yết trên thị trường',ans:'B'},
   {q:'"Hao phí lao động quá khứ" bao gồm những yếu tố nào?',a:'Tiền lương công nhân',b:'Giá trị vật tư, nhiên liệu, máy móc tiêu dùng',c:'Lợi nhuận của nhà tư bản',d:'Giá trị thặng dư siêu ngạch',ans:'B'},
   {q:'"Hao phí lao động mới" do đối tượng nào tạo ra?',a:'Máy móc tự động',b:'Người lao động sống trong quá trình sản xuất',c:'Nhà đầu tư khi bỏ vốn',d:'Người tiêu dùng khi mua hàng',ans:'B'},
   {q:'Giá trị thặng dư (m) là phần lao động mới kết tinh thêm ngoài mức nào?',a:'Mức thuế phải nộp',b:'Mức thù lao (tiền lương) của công nhân',c:'Mức khấu hao máy móc',d:'Mức giá cả thị trường',ans:'B'},
@@ -311,7 +309,7 @@ const QUESTIONS=[
   {q:'Sự chênh lệch dương giữa giá bán và chi phí sản xuất được gọi là:',a:'Tiền lương',b:'Lợi nhuận',c:'Thuế',d:'Khấu hao',ans:'B'},
   {q:'"Lao động sống không ngừng sáng tạo" tạo ra cái gì cho nhân loại?',a:'Các khoản nợ',b:'Những giá trị mới',c:'Sự lười biếng',d:'Các cuộc khủng hoảng',ans:'B'},
   {q:'Học thuyết Mác nhắc nhở sự giàu có bền vững dựa trên:',a:'Đầu cơ bất động sản',b:'Một nền sản xuất có thực',c:'Thao túng thị trường vàng',d:'In thêm tiền giấy',ans:'B'},
-  {q:'Khi nhà tư bản bán đúng giá trị hàng hóa, thì họ:',a:'Không có lãi',b:'Thu được lợi nhuận bằng giá trị thặng dư',b:'Bị lỗ vốn',d:'Chỉ thu hồi được tiền lương',ans:'B'},
+  {q:'Khi nhà tư bản bán đúng giá trị hàng hóa, thì họ:',a:'Không có lãi',b:'Thu được lợi nhuận bằng giá trị thặng dư',c:'Bị lỗ vốn',d:'Chỉ thu hồi được tiền lương',ans:'B'},
   {q:'Bản chất thực sự của lợi nhuận là gì?',a:'Là sự sáng tạo của nhà tư bản',b:'Là hình thái biến tướng của giá trị thặng dư',c:'Là kết quả của may mắn',d:'Là sự đóng góp của người tiêu dùng',ans:'B'}
 ];
 
@@ -337,6 +335,7 @@ let G={
   hostRole:false,myTeamId:0,myPlayerName:'',myPlayerId:'',teamPlayerCount:{},
   isCaptain:false,charAnimTimeout:null,touchStart:null,
   questionMinimized:false,questionData:null,questionAnswers:null,
+  usedQTexts:[],
   roomId:'default',fbListenersAttached:false,fbPendingInit:false
 };
 const _urlRoom=new URLSearchParams(location.search).get('room');
@@ -526,7 +525,7 @@ function renderBoard(){
     const cell=G.board[r][c];const isPlayer=(r===pos.r&&c===pos.c);
     const isEven=(r+c)%2===0;
     div.className='cell';
-    if(cell.type==='wall'){div.classList.add('cell-wall');div.innerHTML=rockSvg()}
+    if(cell.type==='wall'){div.classList.add('cell-wall');div.innerHTML=rockSvg(r,c)}
     else if(cell.type==='start')div.classList.add('cell-start');
     else if(cell.type==='finish'){div.classList.add('cell-finish');div.innerHTML=trophySvg()}
     else if(cell.type==='question'){div.classList.add('cell-q');div.innerHTML=crateSvg()}
@@ -584,111 +583,248 @@ function playerCharSvg(){
   </svg>`
 }
 
-function rockSvg(){
+function rockSvg(r,c){
+  const variants=[rockSvg1,rockSvg2,rockSvg3];
+  return variants[(r*7+c)%3]()
+}
+function rockSvg1(){
   return `<svg viewBox="0 0 48 48" width="84%" height="84%">
     <defs>
-      <linearGradient id="rockGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e2e8f0"/><stop offset="35%" stop-color="#a0aec0"/><stop offset="70%" stop-color="#718096"/><stop offset="100%" stop-color="#4a5568"/></linearGradient>
-      <linearGradient id="rockDark" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#718096"/><stop offset="100%" stop-color="#2d3748"/></linearGradient>
+      <linearGradient id="r1a" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d4dce8"/><stop offset="30%" stop-color="#a0aec0"/><stop offset="65%" stop-color="#718096"/><stop offset="100%" stop-color="#4a5568"/></linearGradient>
+      <linearGradient id="r1b" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#4a5568"/><stop offset="100%" stop-color="#2d3748"/></linearGradient>
+      <linearGradient id="r1c" x1="0.5" y1="0" x2="0.5" y2="1"><stop offset="0" stop-color="#e2e8f0"/><stop offset="100%" stop-color="#a0aec0"/></linearGradient>
+      <radialGradient id="r1s" cx="0.3" cy="0.25" r="0.5"><stop offset="0" stop-color="#fff" stop-opacity="0.15"/><stop offset="100%" stop-color="#fff" stop-opacity="0"/></radialGradient>
     </defs>
-    <ellipse cx="24" cy="44" rx="16" ry="4" fill="rgba(0,0,0,0.15)"/>
-    <!-- Main rock body -->
-    <polygon points="24,4 44,16 44,36 34,46 14,46 4,36 4,16" fill="url(#rockGrad)" stroke="#4a5568" stroke-width="0.8"/>
-    <!-- Top face (light) -->
-    <polygon points="24,6 40,16 24,28 8,16" fill="#cbd5e0" opacity="0.25"/>
-    <!-- Left face -->
-    <polygon points="8,16 24,28 24,42 8,36" fill="url(#rockDark)" opacity="0.3"/>
-    <!-- Right face -->
-    <polygon points="24,28 40,16 40,36 24,42" fill="#2d3748" opacity="0.25"/>
-    <!-- Bottom face -->
-    <polygon points="8,36 24,42 40,36 34,46 14,46" fill="#1a202c" opacity="0.3"/>
-    <!-- Crack lines -->
-    <path d="M22,10 L18,22 L22,30 L20,40" fill="none" stroke="#4a5568" stroke-width="1.5" opacity="0.3" stroke-linecap="round"/>
-    <path d="M18,22 L14,26" fill="none" stroke="#4a5568" stroke-width="1" opacity="0.25" stroke-linecap="round"/>
-    <path d="M30,12 L32,20" fill="none" stroke="#4a5568" stroke-width="1" opacity="0.2" stroke-linecap="round"/>
-    <!-- Moss patches -->
-    <ellipse cx="12" cy="38" rx="3" ry="1.5" fill="#2f855a" opacity="0.4"/>
-    <ellipse cx="16" cy="42" rx="2" ry="1" fill="#38a169" opacity="0.3"/>
-    <ellipse cx="34" cy="40" rx="2.5" ry="1" fill="#2f855a" opacity="0.35"/>
-    <!-- Highlight -->
-    <ellipse cx="20" cy="12" rx="3" ry="2" fill="white" opacity="0.12"/>
+    <ellipse cx="24" cy="44" rx="16" ry="4.5" fill="rgba(0,0,0,0.18)"/>
+    <path d="M23,3 L44,14 L45,34 L38,44 L33,46 L16,45 L7,44 L3,35 L4,15 Z" fill="url(#r1a)" stroke="#3d4a5c" stroke-width="0.6" stroke-linejoin="round"/>
+    <path d="M23,5 L38,15 L24,28 L10,16 Z" fill="url(#r1c)" opacity="0.35"/>
+    <path d="M10,16 L24,28 L24,42 L10,35 Z" fill="url(#r1b)" opacity="0.3"/>
+    <path d="M24,28 L38,15 L39,33 L24,42 Z" fill="#374151" opacity="0.3"/>
+    <path d="M10,35 L24,42 L38,34 L34,44 L16,43 Z" fill="#1f2937" opacity="0.35"/>
+    <path d="M6,20 L12,18 L18,24 L14,30 L8,28 Z" fill="#a0aec0" opacity="0.15"/>
+    <path d="M30,12 L36,16 L38,24 L32,26 Z" fill="#cbd5e0" opacity="0.12"/>
+    <path d="M28,6 L32,10 L30,14 L26,12 Z" fill="#e2e8f0" opacity="0.15"/>
+    <path d="M16,32 L20,34 L18,40 L14,38 Z" fill="#4a5568" opacity="0.2"/>
+    <path d="M20,10 L16,20 L20,30 L17,41" fill="none" stroke="#3d4a5c" stroke-width="1.2" opacity="0.2" stroke-linecap="round"/>
+    <path d="M16,20 L11,24" fill="none" stroke="#3d4a5c" stroke-width="0.8" opacity="0.15" stroke-linecap="round"/>
+    <path d="M32,13 L34,22" fill="none" stroke="#3d4a5c" stroke-width="0.8" opacity="0.15" stroke-linecap="round"/>
+    <circle cx="14" cy="14" r="0.8" fill="#2d3748" opacity="0.2"/>
+    <circle cx="28" cy="8" r="0.6" fill="#2d3748" opacity="0.15"/>
+    <circle cx="36" cy="20" r="0.7" fill="#2d3748" opacity="0.15"/>
+    <circle cx="15" cy="36" r="0.5" fill="#e2e8f0" opacity="0.2"/>
+    <circle cx="22" cy="38" r="0.6" fill="#e2e8f0" opacity="0.15"/>
+    <circle cx="32" cy="30" r="0.7" fill="#2d3748" opacity="0.12"/>
+    <path d="M11,37 Q13,36 15,37.5" fill="none" stroke="#2f855a" stroke-width="1.5" opacity="0.35" stroke-linecap="round"/>
+    <path d="M14,39 Q17,38 19,39" fill="none" stroke="#38a169" stroke-width="1.2" opacity="0.3" stroke-linecap="round"/>
+    <path d="M33,38 Q35,37 37,39" fill="none" stroke="#2f855a" stroke-width="1.3" opacity="0.3" stroke-linecap="round"/>
+    <path d="M34,36 Q36,36.5 37.5,38" fill="none" stroke="#38a169" stroke-width="1" opacity="0.25" stroke-linecap="round"/>
+    <rect x="18" y="12" width="8" height="4" rx="2" fill="url(#r1s)"/>
+  </svg>`
+}
+function rockSvg2(){
+  return `<svg viewBox="0 0 48 48" width="84%" height="84%">
+    <defs>
+      <linearGradient id="r2a" x1="0.2" y1="0" x2="0.8" y2="1"><stop offset="0" stop-color="#cbd5e0"/><stop offset="30%" stop-color="#94a3b8"/><stop offset="60%" stop-color="#64748b"/><stop offset="100%" stop-color="#475569"/></linearGradient>
+      <linearGradient id="r2b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#64748b"/><stop offset="100%" stop-color="#334155"/></linearGradient>
+      <linearGradient id="r2c" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e2e8f0"/><stop offset="100%" stop-color="#94a3b8"/></linearGradient>
+    </defs>
+    <ellipse cx="24" cy="44" rx="15" ry="4" fill="rgba(0,0,0,0.18)"/>
+    <path d="M20,4 L42,12 L44,30 L40,42 L32,45 L14,46 L6,40 L3,28 L6,14 Z" fill="url(#r2a)" stroke="#3b4a5c" stroke-width="0.6" stroke-linejoin="round"/>
+    <path d="M20,6 L36,14 L22,26 L8,15 Z" fill="url(#r2c)" opacity="0.3"/>
+    <path d="M8,15 L22,26 L22,42 L8,36 Z" fill="url(#r2b)" opacity="0.35"/>
+    <path d="M22,26 L36,14 L38,32 L22,42 Z" fill="#374151" opacity="0.25"/>
+    <path d="M8,36 L22,42 L36,34 L30,43 L16,44 Z" fill="#1e293b" opacity="0.3"/>
+    <path d="M14,8 L18,12 L16,18 L10,14 Z" fill="#cbd5e0" opacity="0.15"/>
+    <path d="M34,16 L40,22 L38,30 L32,28 Z" fill="#94a3b8" opacity="0.12"/>
+    <path d="M12,30 L16,32 L14,38 L10,36 Z" fill="#475569" opacity="0.2"/>
+    <path d="M18,12 L14,24 L18,34 L15,44" fill="none" stroke="#3b4a5c" stroke-width="1" opacity="0.2" stroke-linecap="round"/>
+    <path d="M14,24 L8,28" fill="none" stroke="#3b4a5c" stroke-width="0.8" opacity="0.15" stroke-linecap="round"/>
+    <path d="M30,10 L34,18 L32,26" fill="none" stroke="#3b4a5c" stroke-width="0.8" opacity="0.15" stroke-linecap="round"/>
+    <circle cx="12" cy="12" r="0.7" fill="#334155" opacity="0.2"/>
+    <circle cx="26" cy="8" r="0.6" fill="#334155" opacity="0.15"/>
+    <circle cx="34" cy="22" r="0.8" fill="#334155" opacity="0.12"/>
+    <circle cx="10" cy="34" r="0.5" fill="#e2e8f0" opacity="0.2"/>
+    <circle cx="30" cy="40" r="0.6" fill="#e2e8f0" opacity="0.15"/>
+    <circle cx="38" cy="28" r="0.5" fill="#334155" opacity="0.12"/>
+    <path d="M8,37 Q10,36 13,37.5" fill="none" stroke="#2d6a4f" stroke-width="1.5" opacity="0.35" stroke-linecap="round"/>
+    <path d="M12,40 Q15,39 18,40" fill="none" stroke="#40916c" stroke-width="1.2" opacity="0.3" stroke-linecap="round"/>
+    <path d="M34,39 Q37,38 39,40" fill="none" stroke="#2d6a4f" stroke-width="1.3" opacity="0.3" stroke-linecap="round"/>
+    <path d="M36,37 Q38,37.5 39.5,39" fill="none" stroke="#40916c" stroke-width="1" opacity="0.25" stroke-linecap="round"/>
+    <rect x="16" y="10" width="10" height="5" rx="2.5" fill="url(#r2c)" opacity="0.2"/>
+  </svg>`
+}
+function rockSvg3(){
+  return `<svg viewBox="0 0 48 48" width="84%" height="84%">
+    <defs>
+      <linearGradient id="r3a" x1="0" y1="0.2" x2="1" y2="0.8"><stop offset="0" stop-color="#bdc8d8"/><stop offset="40%" stop-color="#8a9bb0"/><stop offset="70%" stop-color="#5a6a7d"/><stop offset="100%" stop-color="#3b4a5c"/></linearGradient>
+      <linearGradient id="r3b" x1="1" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3b4a5c"/><stop offset="100%" stop-color="#1e293b"/></linearGradient>
+      <linearGradient id="r3c" x1="0.5" y1="0" x2="0.5" y2="1"><stop offset="0" stop-color="#eef2f6"/><stop offset="100%" stop-color="#8a9bb0"/></linearGradient>
+    </defs>
+    <ellipse cx="24" cy="44" rx="15.5" ry="4.5" fill="rgba(0,0,0,0.18)"/>
+    <path d="M17,2 L40,10 L45,28 L41,40 L35,46 L18,45 L5,42 L2,30 L5,16 Z" fill="url(#r3a)" stroke="#2e3a4c" stroke-width="0.6" stroke-linejoin="round"/>
+    <path d="M17,4 L35,12 L22,25 L8,14 Z" fill="url(#r3c)" opacity="0.3"/>
+    <path d="M8,14 L22,25 L22,40 L8,34 Z" fill="url(#r3b)" opacity="0.3"/>
+    <path d="M22,25 L35,12 L37,30 L22,40 Z" fill="#334155" opacity="0.35"/>
+    <path d="M8,34 L22,40 L37,32 L32,43 L16,44 Z" fill="#1e293b" opacity="0.3"/>
+    <path d="M26,6 L30,10 L28,16 L22,12 Z" fill="#cbd5e0" opacity="0.15"/>
+    <path d="M36,18 L42,24 L40,32 L34,28 Z" fill="#8a9bb0" opacity="0.12"/>
+    <path d="M10,28 L14,30 L12,36 L8,34 Z" fill="#3b4a5c" opacity="0.2"/>
+    <path d="M22,8 L18,20 L22,30 L19,44" fill="none" stroke="#2e3a4c" stroke-width="1.2" opacity="0.2" stroke-linecap="round"/>
+    <path d="M18,20 L13,26" fill="none" stroke="#2e3a4c" stroke-width="0.8" opacity="0.15" stroke-linecap="round"/>
+    <path d="M28,12 L32,18 L30,28" fill="none" stroke="#2e3a4c" stroke-width="0.8" opacity="0.15" stroke-linecap="round"/>
+    <circle cx="14" cy="10" r="0.8" fill="#1e293b" opacity="0.2"/>
+    <circle cx="28" cy="6" r="0.6" fill="#1e293b" opacity="0.15"/>
+    <circle cx="38" cy="20" r="0.7" fill="#1e293b" opacity="0.12"/>
+    <circle cx="12" cy="38" r="0.5" fill="#eef2f6" opacity="0.2"/>
+    <circle cx="24" cy="42" r="0.6" fill="#eef2f6" opacity="0.15"/>
+    <circle cx="36" cy="34" r="0.5" fill="#1e293b" opacity="0.12"/>
+    <path d="M9,35 Q11,34 13,35.5" fill="none" stroke="#2d6a4f" stroke-width="1.5" opacity="0.35" stroke-linecap="round"/>
+    <path d="M12,38 Q15,37 17,38" fill="none" stroke="#40916c" stroke-width="1.2" opacity="0.3" stroke-linecap="round"/>
+    <path d="M35,39 Q37,38 39,40" fill="none" stroke="#2d6a4f" stroke-width="1.3" opacity="0.3" stroke-linecap="round"/>
+    <path d="M33,37 Q35,36.5 36.5,38" fill="none" stroke="#40916c" stroke-width="1" opacity="0.25" stroke-linecap="round"/>
+    <rect x="20" y="8" width="8" height="4" rx="2" fill="url(#r3c)" opacity="0.2"/>
   </svg>`
 }
 
 function crateSvg(){
   return `<svg viewBox="0 0 48 48" width="82%" height="82%" class="anim-crate">
     <defs>
-      <linearGradient id="wood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b8860b"/><stop offset="50%" stop-color="#8b6914"/><stop offset="100%" stop-color="#6b4d0f"/></linearGradient>
-      <linearGradient id="woodDark" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7a5a10"/><stop offset="100%" stop-color="#543a08"/></linearGradient>
-      <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#a0aec0"/><stop offset="100%" stop-color="#4a5568"/></linearGradient>
+      <linearGradient id="wd1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c4913a"/><stop offset="50%" stop-color="#9a7224"/><stop offset="100%" stop-color="#6b4d0f"/></linearGradient>
+      <linearGradient id="wd2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d4a14a"/><stop offset="50%" stop-color="#a8822e"/><stop offset="100%" stop-color="#7a5a14"/></linearGradient>
+      <linearGradient id="wd3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b88330"/><stop offset="50%" stop-color="#8b6914"/><stop offset="100%" stop-color="#5a3f0a"/></linearGradient>
+      <linearGradient id="metalBr" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#cbd5e0"/><stop offset="40%" stop-color="#8a9bb0"/><stop offset="100%" stop-color="#475569"/></linearGradient>
+      <linearGradient id="metalDrk" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#64748b"/><stop offset="100%" stop-color="#1e293b"/></linearGradient>
+      <linearGradient id="lockGrad" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8a9bb0"/><stop offset="40%" stop-color="#cbd5e0"/><stop offset="60%" stop-color="#a0aec0"/><stop offset="100%" stop-color="#475569"/></linearGradient>
     </defs>
     <ellipse cx="24" cy="44" rx="13" ry="3" fill="rgba(0,0,0,0.15)"/>
     <!-- Shadow behind crate -->
-    <rect x="6" y="10" width="36" height="34" rx="2" fill="rgba(0,0,0,0.15)"/>
-    <!-- Main crate body -->
-    <rect x="5" y="6" width="38" height="36" rx="3" fill="url(#wood)" stroke="#4a2a10" stroke-width="1"/>
-    <!-- Inner planks -->
-    <rect x="5" y="6" width="38" height="9" rx="1" fill="url(#woodDark)" opacity="0.5"/>
-    <rect x="5" y="31" width="38" height="9" rx="1" fill="url(#woodDark)" opacity="0.5"/>
-    <!-- Plank lines -->
-    <line x1="5" y1="15" x2="43" y2="15" stroke="#4a2a10" stroke-width="0.8" opacity="0.3"/>
-    <line x1="5" y1="31" x2="43" y2="31" stroke="#4a2a10" stroke-width="0.8" opacity="0.3"/>
-    <!-- X pattern on top -->
-    <line x1="8" y1="8" x2="40" y2="22" stroke="#4a2a10" stroke-width="1" opacity="0.15"/>
-    <line x1="40" y1="8" x2="8" y2="22" stroke="#4a2a10" stroke-width="1" opacity="0.15"/>
+    <rect x="6" y="10" width="36" height="34" rx="2" fill="rgba(0,0,0,0.12)"/>
+    <!-- Top lid plank -->
+    <rect x="5" y="6" width="38" height="7" rx="1.5" fill="url(#wd2)" stroke="#3a2405" stroke-width="0.5"/>
+    <path d="M6,7 Q12,8 18,7 Q24,6 30,7.5 Q36,8 42,7" fill="none" stroke="#5a3f0a" stroke-width="0.4" opacity="0.3"/>
+    <path d="M6,9 Q14,10 20,9 Q28,8 36,9.5 Q40,10 42,9" fill="none" stroke="#5a3f0a" stroke-width="0.3" opacity="0.2"/>
+    <path d="M6,11 Q10,11.5 16,11 Q22,10.5 28,11.5 Q34,12 42,11" fill="none" stroke="#5a3f0a" stroke-width="0.3" opacity="0.2"/>
+    <!-- Upper mid plank -->
+    <rect x="5" y="13" width="38" height="7" rx="1" fill="url(#wd1)" stroke="#3a2405" stroke-width="0.5"/>
+    <path d="M6,14 Q12,15 18,14 Q24,13 30,14.5 Q36,15 42,14" fill="none" stroke="#5a3f0a" stroke-width="0.4" opacity="0.3"/>
+    <path d="M6,16 Q10,17 16,16 Q22,15.5 28,16.5 Q34,17 42,16" fill="none" stroke="#5a3f0a" stroke-width="0.3" opacity="0.2"/>
+    <!-- Lower mid plank -->
+    <rect x="5" y="24" width="38" height="7" rx="1" fill="url(#wd3)" stroke="#3a2405" stroke-width="0.5"/>
+    <path d="M6,25 Q12,26 18,25 Q24,24 30,25.5 Q36,26 42,25" fill="none" stroke="#5a3f0a" stroke-width="0.4" opacity="0.3"/>
+    <path d="M6,27 Q10,28 16,27 Q22,26.5 28,27.5 Q34,28 42,27" fill="none" stroke="#5a3f0a" stroke-width="0.3" opacity="0.2"/>
+    <!-- Bottom plank -->
+    <rect x="5" y="31" width="38" height="7" rx="1" fill="url(#wd1)" stroke="#3a2405" stroke-width="0.5"/>
+    <path d="M6,32 Q12,33 18,32 Q24,31 30,32.5 Q36,33 42,32" fill="none" stroke="#5a3f0a" stroke-width="0.4" opacity="0.3"/>
+    <path d="M6,34 Q10,35 16,34 Q22,33.5 28,34.5 Q34,35 42,34" fill="none" stroke="#5a3f0a" stroke-width="0.3" opacity="0.2"/>
+    <!-- Bottom filler -->
+    <rect x="5" y="38" width="38" height="4" rx="1" fill="url(#wd2)" stroke="#3a2405" stroke-width="0.5"/>
+    <!-- Vertical plank separators -->
+    <line x1="5" y1="13" x2="43" y2="13" stroke="#3a2405" stroke-width="0.8" opacity="0.25"/>
+    <line x1="5" y1="20" x2="43" y2="20" stroke="#3a2405" stroke-width="0.8" opacity="0.2"/>
+    <line x1="5" y1="24" x2="43" y2="24" stroke="#3a2405" stroke-width="0.8" opacity="0.25"/>
+    <line x1="5" y1="31" x2="43" y2="31" stroke="#3a2405" stroke-width="0.8" opacity="0.25"/>
+    <line x1="5" y1="38" x2="43" y2="38" stroke="#3a2405" stroke-width="0.8" opacity="0.2"/>
+    <!-- Vertical line at 20 (mid gap where ? is) -->
+    <line x1="5" y1="20" x2="43" y2="20" stroke="#3a2405" stroke-width="1.2" opacity="0.3"/>
     <!-- Metal corner brackets - top left -->
-    <polygon points="5,6 12,6 12,10 8,10 8,14 5,14" fill="url(#metal)" stroke="#2d3748" stroke-width="0.5"/>
-    <circle cx="6.5" cy="7.5" r="1" fill="#2d3748"/>
-    <circle cx="10.5" cy="7.5" r="1" fill="#2d3748"/>
-    <circle cx="6.5" cy="12.5" r="1" fill="#2d3748"/>
+    <polygon points="5,6 11,6 11,10 8,10 8,13 5,13" fill="url(#metalBr)" stroke="#2d3748" stroke-width="0.4"/>
+    <circle cx="6.5" cy="7.5" r="1" fill="url(#metalDrk)"/>
+    <circle cx="6.5" cy="7.5" r="0.4" fill="#1e293b"/>
+    <circle cx="9.5" cy="7.5" r="1" fill="url(#metalDrk)"/>
+    <circle cx="9.5" cy="7.5" r="0.4" fill="#1e293b"/>
+    <circle cx="6.5" cy="11.5" r="1" fill="url(#metalDrk)"/>
+    <circle cx="6.5" cy="11.5" r="0.4" fill="#1e293b"/>
     <!-- Metal corner brackets - top right -->
-    <polygon points="43,6 36,6 36,10 40,10 40,14 43,14" fill="url(#metal)" stroke="#2d3748" stroke-width="0.5"/>
-    <circle cx="41.5" cy="7.5" r="1" fill="#2d3748"/>
-    <circle cx="37.5" cy="7.5" r="1" fill="#2d3748"/>
-    <circle cx="41.5" cy="12.5" r="1" fill="#2d3748"/>
+    <polygon points="43,6 37,6 37,10 40,10 40,13 43,13" fill="url(#metalBr)" stroke="#2d3748" stroke-width="0.4"/>
+    <circle cx="41.5" cy="7.5" r="1" fill="url(#metalDrk)"/>
+    <circle cx="41.5" cy="7.5" r="0.4" fill="#1e293b"/>
+    <circle cx="38.5" cy="7.5" r="1" fill="url(#metalDrk)"/>
+    <circle cx="38.5" cy="7.5" r="0.4" fill="#1e293b"/>
+    <circle cx="41.5" cy="11.5" r="1" fill="url(#metalDrk)"/>
+    <circle cx="41.5" cy="11.5" r="0.4" fill="#1e293b"/>
     <!-- Metal corner brackets - bottom left -->
-    <polygon points="5,40 12,40 12,36 8,36 8,32 5,32" fill="url(#metal)" stroke="#2d3748" stroke-width="0.5"/>
-    <circle cx="6.5" cy="38.5" r="1" fill="#2d3748"/>
-    <circle cx="10.5" cy="38.5" r="1" fill="#2d3748"/>
-    <circle cx="6.5" cy="33.5" r="1" fill="#2d3748"/>
+    <polygon points="5,40 11,40 11,36 8,36 8,32 5,32" fill="url(#metalBr)" stroke="#2d3748" stroke-width="0.4"/>
+    <circle cx="6.5" cy="38.5" r="1" fill="url(#metalDrk)"/>
+    <circle cx="6.5" cy="38.5" r="0.4" fill="#1e293b"/>
+    <circle cx="9.5" cy="38.5" r="1" fill="url(#metalDrk)"/>
+    <circle cx="9.5" cy="38.5" r="0.4" fill="#1e293b"/>
+    <circle cx="6.5" cy="33.5" r="1" fill="url(#metalDrk)"/>
+    <circle cx="6.5" cy="33.5" r="0.4" fill="#1e293b"/>
     <!-- Metal corner brackets - bottom right -->
-    <polygon points="43,40 36,40 36,36 40,36 40,32 43,32" fill="url(#metal)" stroke="#2d3748" stroke-width="0.5"/>
-    <circle cx="41.5" cy="38.5" r="1" fill="#2d3748"/>
-    <circle cx="37.5" cy="38.5" r="1" fill="#2d3748"/>
-    <circle cx="41.5" cy="33.5" r="1" fill="#2d3748"/>
-    <!-- Red glowing ? (glow via CSS .anim-crate) -->
-    <text x="24" y="29" text-anchor="middle" font-size="20" font-weight="900" fill="#ef4444" font-family="Arial, sans-serif" stroke="#fff" stroke-width="0.6">?</text>
+    <polygon points="43,40 37,40 37,36 40,36 40,32 43,32" fill="url(#metalBr)" stroke="#2d3748" stroke-width="0.4"/>
+    <circle cx="41.5" cy="38.5" r="1" fill="url(#metalDrk)"/>
+    <circle cx="41.5" cy="38.5" r="0.4" fill="#1e293b"/>
+    <circle cx="38.5" cy="38.5" r="1" fill="url(#metalDrk)"/>
+    <circle cx="38.5" cy="38.5" r="0.4" fill="#1e293b"/>
+    <circle cx="41.5" cy="33.5" r="1" fill="url(#metalDrk)"/>
+    <circle cx="41.5" cy="33.5" r="0.4" fill="#1e293b"/>
+    <!-- Lock on lid -->
+    <rect x="20" y="6" width="8" height="8" rx="1.5" fill="url(#lockGrad)" stroke="#2d3748" stroke-width="0.4"/>
+    <circle cx="24" cy="9" r="1.5" fill="#1e293b"/>
+    <rect x="22" y="6" width="4" height="3" rx="0.5" fill="#1e293b"/>
+    <path d="M22,7 L22,8 L26,8 L26,7" fill="none" stroke="#64748b" stroke-width="0.5"/>
+    <path d="M20,10 L28,10" stroke="#2d3748" stroke-width="0.4" opacity="0.5"/>
+    <!-- ? drawn as path -->
+    <g transform="translate(24,22)">
+      <path d="M-3,-3 Q-3,-7 0,-7 Q3,-7 3,-3 Q3,-1 1,0 L-1,0 L-1,3 L1,3 L1,1.5 Q3,1 4.5,-0.5 Q5.5,-2 5,-4 Q4,-7 0,-7 Q-4,-7 -5,-4 Q-5.5,-2 -5,-1" fill="none" stroke="#ef4444" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M-1,5 L-1,7 L1,7 L1,5 Z" fill="#ef4444"/>
+    </g>
+    <!-- Shadow for ? -->
+    <g transform="translate(24.5,22.5)">
+      <path d="M-3,-3 Q-3,-7 0,-7 Q3,-7 3,-3 Q3,-1 1,0 L-1,0 L-1,3 L1,3 L1,1.5 Q3,1 4.5,-0.5 Q5.5,-2 5,-4 Q4,-7 0,-7 Q-4,-7 -5,-4 Q-5.5,-2 -5,-1" fill="none" stroke="rgba(0,0,0,0.15)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" transform="translate(0.3,0.3)"/>
+    </g>
   </svg>`
 }
 
 function trophySvg(){
   return `<svg viewBox="0 0 48 48" width="78%" height="78%">
     <defs>
-      <linearGradient id="cupGold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff4b0"/><stop offset="25%" stop-color="#fbbf24"/><stop offset="60%" stop-color="#f59e0b"/><stop offset="100%" stop-color="#b45309"/></linearGradient>
-      <linearGradient id="cupPed" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eab308"/><stop offset="100%" stop-color="#92400e"/></linearGradient>
-      <radialGradient id="cupSh" cx="0.3" cy="0.2" r="0.6"><stop offset="0" stop-color="white" stop-opacity="0.4"/><stop offset="100%" stop-color="white" stop-opacity="0"/></radialGradient>
+      <linearGradient id="cupGold" x1="0.1" y1="0" x2="0.9" y2="1"><stop offset="0" stop-color="#fff9d6"/><stop offset="12%" stop-color="#fde047"/><stop offset="35%" stop-color="#fbbf24"/><stop offset="55%" stop-color="#f59e0b"/><stop offset="75%" stop-color="#d97706"/><stop offset="100%" stop-color="#92400e"/></linearGradient>
+      <linearGradient id="cupGoldR" x1="0.9" y1="0" x2="0.1" y2="1"><stop offset="0" stop-color="#fff9d6"/><stop offset="12%" stop-color="#fde047"/><stop offset="35%" stop-color="#fbbf24"/><stop offset="55%" stop-color="#f59e0b"/><stop offset="75%" stop-color="#d97706"/><stop offset="100%" stop-color="#92400e"/></linearGradient>
+      <linearGradient id="cupPed" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fde047"/><stop offset="30%" stop-color="#eab308"/><stop offset="70%" stop-color="#d97706"/><stop offset="100%" stop-color="#78350f"/></linearGradient>
+      <radialGradient id="cupSh" cx="0.3" cy="0.2" r="0.55"><stop offset="0" stop-color="white" stop-opacity="0.5"/><stop offset="40%" stop-color="white" stop-opacity="0.1"/><stop offset="100%" stop-color="white" stop-opacity="0"/></radialGradient>
+      <linearGradient id="cupEdge" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fde047"/><stop offset="100%" stop-color="#92400e"/></linearGradient>
     </defs>
-    <ellipse cx="24" cy="46" rx="14" ry="2" fill="rgba(0,0,0,0.15)"/>
-    <!-- Base -->
-    <rect x="12" y="43" width="24" height="4" rx="1" fill="url(#cupPed)" stroke="#78350f" stroke-width="0.3"/>
-    <rect x="14" y="40" width="20" height="4" rx="1" fill="url(#cupPed)" stroke="#78350f" stroke-width="0.3"/>
-    <rect x="17" y="37" width="14" height="4" rx="1" fill="url(#cupPed)" stroke="#78350f" stroke-width="0.3"/>
+    <ellipse cx="24" cy="46" rx="14" ry="2.5" fill="rgba(0,0,0,0.18)"/>
+    <!-- Base tiers -->
+    <path d="M11,43 L37,43 L35,47 L13,47 Z" fill="url(#cupPed)" stroke="#78350f" stroke-width="0.3"/>
+    <path d="M13,40 L35,40 L34,44 L14,44 Z" fill="url(#cupPed)" stroke="#78350f" stroke-width="0.3"/>
+    <path d="M16,37 L32,37 L31,40 L17,40 Z" fill="url(#cupPed)" stroke="#78350f" stroke-width="0.3"/>
+    <path d="M11,43 L13,44 L14,44 L16,43 Q15,44.5 13.5,45 Q12,44.5 11,43" fill="#d97706" opacity="0.4"/>
+    <path d="M35,43 L34,44 L32,44 L37,43 Q36,44.5 34.5,45 Q33,44.5 35,43" fill="#d97706" opacity="0.4"/>
     <!-- Stem -->
     <rect x="20" y="32" width="8" height="6" rx="1.5" fill="url(#cupGold)" stroke="#b45309" stroke-width="0.3"/>
-    <rect x="21" y="33" width="6" height="4" rx="1" fill="#fbbf24" opacity="0.5"/>
+    <rect x="21" y="33" width="6" height="4" rx="1" fill="#fbbf24" opacity="0.4"/>
     <!-- Cup body -->
-    <path d="M14,8 L34,8 L32,28 L16,28 Z" fill="url(#cupGold)" stroke="#b45309" stroke-width="0.6"/>
+    <path d="M14,8 L34,8 L32,28 L16,28 Z" fill="url(#cupGold)" stroke="#b45309" stroke-width="0.5"/>
+    <!-- Mouth rim decorative band -->
+    <path d="M13.5,8 L34.5,8 L35,12 L13,12 Z" fill="url(#cupEdge)" opacity="0.5"/>
+    <path d="M13.5,10 L34.5,10" stroke="#b45309" stroke-width="0.4" opacity="0.4"/>
+    <!-- Bottom band decoration -->
+    <path d="M16,26 L32,26 L31.5,28 L16.5,28 Z" fill="url(#cupEdge)" opacity="0.4"/>
+    <!-- Engraved diamond pattern -->
+    <path d="M18,14 L20,16 L18,18" fill="none" stroke="#78350f" stroke-width="0.5" opacity="0.35"/>
+    <path d="M22,14 L24,16 L22,18" fill="none" stroke="#78350f" stroke-width="0.5" opacity="0.35"/>
+    <path d="M26,14 L28,16 L26,18" fill="none" stroke="#78350f" stroke-width="0.5" opacity="0.35"/>
+    <path d="M30,14 L32,16 L30,18" fill="none" stroke="#78350f" stroke-width="0.5" opacity="0.35"/>
+    <path d="M20,14 L24,14 L24,18 L20,18 Z" fill="none" stroke="#78350f" stroke-width="0.3" opacity="0.2"/>
+    <path d="M24,14 L28,14 L28,18 L24,18 Z" fill="none" stroke="#78350f" stroke-width="0.3" opacity="0.2"/>
+    <!-- Central engraved star -->
+    <path d="M24,19 L24.8,21.2 L27,21.2 L25.2,22.6 L25.8,24.8 L24,23.4 L22.2,24.8 L22.8,22.6 L21,21.2 L23.2,21.2 Z" fill="#78350f" opacity="0.3"/>
     <!-- Left handle -->
-    <path d="M14,8 Q5,10 7,22 Q9,28 16,26" fill="none" stroke="url(#cupGold)" stroke-width="3.5" stroke-linecap="round"/>
-    <path d="M14,8 Q5,10 7,22 Q9,28 16,26" fill="none" stroke="#b45309" stroke-width="0.6" stroke-linecap="round" opacity="0.3"/>
+    <path d="M14,8 Q4,10 6,22 Q8,28 16,26" fill="none" stroke="url(#cupGold)" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M14,8 Q4,10 6,22 Q8,28 16,26" fill="none" stroke="url(#cupGoldR)" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
+    <path d="M14,8 Q4,10 6,22 Q8,28 16,26" fill="none" stroke="#b45309" stroke-width="0.5" stroke-linecap="round" opacity="0.3"/>
     <!-- Right handle -->
-    <path d="M34,8 Q43,10 41,22 Q39,28 32,26" fill="none" stroke="url(#cupGold)" stroke-width="3.5" stroke-linecap="round"/>
-    <path d="M34,8 Q43,10 41,22 Q39,28 32,26" fill="none" stroke="#b45309" stroke-width="0.6" stroke-linecap="round" opacity="0.3"/>
+    <path d="M34,8 Q44,10 42,22 Q40,28 32,26" fill="none" stroke="url(#cupGold)" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M34,8 Q44,10 42,22 Q40,28 32,26" fill="none" stroke="url(#cupGoldR)" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
+    <path d="M34,8 Q44,10 42,22 Q40,28 32,26" fill="none" stroke="#b45309" stroke-width="0.5" stroke-linecap="round" opacity="0.3"/>
     <!-- Bottom curve -->
-    <path d="M16,28 Q24,34 32,28" fill="url(#cupPed)" stroke="#b45309" stroke-width="0.5"/>
-    <!-- Shine -->
+    <path d="M16,28 Q24,34 32,28" fill="url(#cupPed)" stroke="#b45309" stroke-width="0.4"/>
+    <!-- Shine overlay -->
     <path d="M14,8 L34,8 L32,28 L16,28 Z" fill="url(#cupSh)"/>
-    <!-- Star -->
-    <text x="24" y="21" text-anchor="middle" font-size="9" fill="#78350f" font-weight="bold">&#9733;</text>
+    <!-- Specular highlight edge -->
+    <path d="M17,10 L19,10 L18,26 L16.5,26" fill="white" opacity="0.12"/>
     <!-- Sparkles -->
     <circle cx="17" cy="12" r="0.8" fill="#fff" opacity="0.6"/>
     <circle cx="31" cy="12" r="0.8" fill="#fff" opacity="0.6"/>
@@ -747,9 +883,18 @@ function movePlayer(dr,dc){
       return
     }
     G.currentCell={r:nr,c:nc,cell};
-    cell.data={...QUESTIONS[Math.random()*QUESTIONS.length|0]};
+    cell.data=getFreshQuestion();
     showLocalQuestion(cell.data)
   }
+}
+function getFreshQuestion(){
+  // Lọc các câu chưa dùng trong ván này
+  const avail=QUESTIONS.filter((_,i)=>!G.usedQTexts.includes(QUESTIONS[i].q));
+  // Nếu hết câu → reset tracking cho phép dùng lại
+  if(!avail.length){G.usedQTexts=[];return{...QUESTIONS[Math.random()*QUESTIONS.length|0]}}
+  const pick=avail[Math.random()*avail.length|0];
+  G.usedQTexts.push(pick.q);
+  return{...pick}
 }
 function showLocalQuestion(q){
   G.questionData=q;
@@ -1046,6 +1191,7 @@ function startGame(){
     if(!G.teams||!G.teams.length){G.teams=[{id:1,name:'Đội 1'},{id:2,name:'Đội 2'}]}
     G.teams.forEach(t=>{G.teamCups[t.id]=0});
     G.board=generateBoard();G.phase='playing';G.currentCell=null;G.currentTarget=null;
+    G.usedQTexts=[];
     document.getElementById('hostSetup').classList.add('hidden');
     document.getElementById('hostDashboard').classList.remove('hidden');
     renderDashboard();renderBoard();addEvent('🎮 Game bắt đầu!','good');
@@ -1060,6 +1206,7 @@ function resetGame(){
   G.phase='setup';G.eventLog=[];G.connectedPlayers=[];G.board=[];G.currentCell=null;G.currentTarget=null;
   G.filterActive=false;G.fiftyFiftyCount=0;G.cups=0;G.teamCups={};G.teamNames={};G.teamCaptains={};
   G.hostRole=false;G.myTeamId=null;G.myPlayerName='';G.pos={r:0,c:0};G.moveCount=0;G.teams=[];
+  G.usedQTexts=[];
   clearIdentity();
   for(let i=1;i<=30;i++)localStorage.removeItem('teamName'+i);localStorage.removeItem('playerNameLast');
   showScreen('role-screen')
