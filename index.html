@@ -396,14 +396,35 @@ function loadIdentity(){
     const d=JSON.parse(localStorage.getItem('thSoloIdentity'));
     if(d&&d.myPlayerId)G.myPlayerId=d.myPlayerId;
     if(d&&d.myPlayerName)G.myPlayerName=d.myPlayerName;
-    if(d&&d.cups>0)G.cups=d.cups;
-    if(d&&d.fiftyFiftyCount>0)G.fiftyFiftyCount=d.fiftyFiftyCount
+    if(typeof d?.cups==='number')G.cups=d.cups;
+    if(typeof d?.fiftyFiftyCount==='number')G.fiftyFiftyCount=d.fiftyFiftyCount;
   }catch(e){}
 }
 function saveIdentity(){
-  try{localStorage.setItem('thSoloIdentity',JSON.stringify({myPlayerName:G.myPlayerName,myPlayerId:G.myPlayerId,cups:G.cups,fiftyFiftyCount:G.fiftyFiftyCount}))}catch(e){}
+  try{
+    localStorage.setItem('thSoloIdentity',JSON.stringify({
+      myPlayerName:G.myPlayerName,
+      myPlayerId:G.myPlayerId,
+      cups:G.cups,
+      fiftyFiftyCount:G.fiftyFiftyCount,
+      lastSavedAt:Date.now()
+    }))
+  }catch(e){}
 }
 function clearIdentity(){try{localStorage.removeItem('thSoloIdentity')}catch(e){}}
+function saveIdentityToFirebase(){
+  if(!G.myPlayerId)return;
+  const payload={name:G.myPlayerName,playerId:G.myPlayerId,cups:G.cups,fiftyFiftyCount:G.fiftyFiftyCount,lastActive:firebase.database.ServerValue.TIMESTAMP};
+  DB_PLAYERS.child(G.myPlayerId).update(payload).catch(()=>{})
+}
+function setPlayerPresence(isOnline){
+  if(!G.myPlayerId)return;
+  const payload={online:isOnline,lastActive:firebase.database.ServerValue.TIMESTAMP};
+  DB_PLAYERS.child(G.myPlayerId).update(payload).catch(()=>{});
+  if(isOnline){
+    DB_PLAYERS.child(G.myPlayerId).onDisconnect().update({online:false,lastActive:firebase.database.ServerValue.TIMESTAMP}).catch(()=>{})
+  }
+}
 
 async function hashPassword(pw){
   if(!pw)return'';
@@ -965,6 +986,8 @@ function updateCupDisplay(){
 
 // ========== FIREBASE SYNC ==========
 function syncPlayer(){
+  if(!G.myPlayerId)return;
+  saveIdentity();
   const updates={
     name:G.myPlayerName,playerId:G.myPlayerId,cups:G.cups,fiftyFiftyCount:G.fiftyFiftyCount,
     online:true,lastActive:firebase.database.ServerValue.TIMESTAMP
@@ -975,9 +998,10 @@ function updatePlayerCups(val){
   G.cups=val;saveIdentity();
   DB_PLAYERS.child(G.myPlayerId+'/cups').set(val).catch(e=>{});
   DB_PLAYERS.child(G.myPlayerId+'/lastActive').set(firebase.database.ServerValue.TIMESTAMP).catch(e=>{})
+  DB_PLAYERS.child(G.myPlayerId+'/online').set(true).catch(e=>{})
 }
 function updatePlayerFifty(val){
-  G.fiftyFiftyCount=val;
+  G.fiftyFiftyCount=val;saveIdentity();
   DB_PLAYERS.child(G.myPlayerId+'/fiftyFiftyCount').set(val).catch(e=>{})
 }
 
@@ -986,13 +1010,14 @@ let _lbOff=null;
 function listenLeaderboard(){
   if(_lbOff)_lbOff();
   _lbOff=DB_PLAYERS.on('value',snap=>{
-    const data=snap.val();
-    if(!data){G.leaderboardData=[];renderAllRankings();return}
-    const now=Date.now();
-    const players=Object.values(data).filter(p=>p&&p.online&&(now-(p.lastActive||0))<300000);
+    const data=snap.val()||{};
+    const players=Object.values(data).filter(Boolean).map(p=>({...p}));
     G.leaderboardData=players.sort((a,b)=>(b.cups||0)-(a.cups||0));
     renderAllRankings();
-  },e=>{})
+  },e=>{
+    G.leaderboardData=[];
+    renderAllRankings();
+  })
 }
 
 function renderAllRankings(){
@@ -1079,6 +1104,18 @@ document.addEventListener('keydown',e=>{
   const map={'ArrowUp':[-1,0],'ArrowDown':[1,0],'ArrowLeft':[0,-1],'ArrowRight':[0,1]};
   const dir=map[e.key];if(!dir)return;
   e.preventDefault();movePlayer(dir[0],dir[1])
+});
+
+document.addEventListener('visibilitychange',()=>{
+  if(!G.myPlayerId)return;
+  if(document.visibilityState==='visible')setPlayerPresence(true);
+  else setPlayerPresence(false);
+});
+window.addEventListener('beforeunload',()=>{
+  if(G.myPlayerId){
+    saveIdentity();
+    setPlayerPresence(false);
+  }
 });
 
 // ========== PLAYER NAME BADGE ==========
@@ -1180,6 +1217,7 @@ function submitPlayName(){
       G.fiftyFiftyCount=existingData.fiftyFiftyCount||0;
       
       saveIdentity();
+      setPlayerPresence(true);
       closePlayModal();
       enterGameDirect();
       toast(`🎮 Chào mừng trở lại, ${G.myPlayerName}!`,3000);
@@ -1306,7 +1344,9 @@ function enterGameDirect(){
   updateCupDisplay();
   document.getElementById('moveCount').textContent=G.moveCount;
   
+  saveIdentity();
   syncPlayer();
+  setPlayerPresence(true);
 }
 
 // ========== RENAME / SWITCH ACCOUNT ==========
