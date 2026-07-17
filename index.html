@@ -167,7 +167,7 @@ input[type="password"]:focus{box-shadow:0 0 10px rgba(245,158,11,.25);border-col
       <button class="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-black py-4 rounded-xl text-lg transition shadow-lg" onclick="playAgain()">
         🔁 Chơi lại
       </button>
-      <button class="w-full bg-gray-700 hover:bg-gray-600 text-white font-semibold py-3 rounded-xl text-base transition" onclick="showScreen('ranking-screen')">
+      <button class="w-full bg-gray-700 hover:bg-gray-600 text-white font-semibold py-3 rounded-xl text-base transition" onclick="openRankingFromResult()">
         🏆 Xem bảng xếp hạng
       </button>
     </div>
@@ -264,104 +264,106 @@ const START={r:0,c:0},FINISH={r:7,c:7};
 const NUM_WALLS=25;
 
 const QUESTIONS=[
-  {q:'Ai là người phát hiện ra tính hai mặt của lao động sản xuất hàng hóa?',a:'Adam Smith',b:'David Ricardo',c:'C. Mác',d:'T.J. Dunning',ans:'C'},
-  {q:'Lao động cụ thể tạo ra thuộc tính nào của hàng hóa?',a:'Giá trị',b:'Giá trị sử dụng',c:'Giá trị trao đổi',d:'Lợi nhuận',ans:'B'},
-  {q:'Lao động trừu tượng tạo ra thuộc tính nào của hàng hóa?',a:'Công dụng',b:'Giá trị sử dụng',c:'Giá trị',d:'Hình thái',ans:'C'},
-  {q:'Lượng giá trị của một đơn vị hàng hóa được đo bằng thước đo nào?',a:'Số lượng máy móc sử dụng',b:'Tiền lương trả cho công nhân',c:'Thời gian lao động xã hội cần thiết',d:'Giá cả trên thị trường',ans:'C'},
-  {q:'Cấu thành lượng giá trị hàng hóa bao gồm những bộ phận nào?',a:'Hao phí lao động quá khứ và hao phí lao động mới',b:'Tiền lương và tiền thưởng',c:'Chi phí sản xuất và lợi nhuận',d:'Giá trị sử dụng và giá trị trao đổi',ans:'A'},
-  {q:'Giá trị của các yếu tố vật tư, máy móc dịch chuyển vào sản phẩm mới được gọi là:',a:'Lao động sống',b:'Hao phí lao động quá khứ',c:'Giá trị thặng dư',d:'Lợi nhuận',ans:'B'},
-  {q:'Giá trị thặng dư (m) được tạo ra trong lĩnh vực nào?',a:'Lưu thông',b:'Trao đổi',c:'Sản xuất',d:'Tiêu dùng',ans:'C'},
-  {q:'Bản chất của giá trị thặng dư là gì?',a:'Phần tiền thưởng cho nhà tư bản',b:'Phần lao động không công của công nhân bị chiếm đoạt',c:'Kết quả của việc mua rẻ bán đắt',d:'Do máy móc tự sinh ra',ans:'B'},
-  {q:'Lợi nhuận (p) được định nghĩa là:',a:'Hình thái biến tướng của giá trị thặng dư',b:'Tổng chi phí sản xuất',c:'Tiền lương trả cho công nhân',d:'Giá trị sử dụng của hàng hóa',ans:'A'},
-  {q:'Theo C. Mác, lợi nhuận xuất hiện dưới hình thái nào trên bề mặt xã hội?',a:'Quan hệ bóc lột',b:'Lao động trừu tượng',c:'Một khoản "tiền thưởng" của mua bán, lưu thông',d:'Giá trị thặng dư siêu ngạch',ans:'C'},
-  {q:'Khi Cung = Cầu, mối quan hệ giữa Lợi nhuận (p) và Giá trị thặng dư (m) là:',a:'p>m',b:'p<m',c:'p=m',d:'Không có quan hệ',ans:'C'},
-  {q:'Khi Cung < Cầu, nhà tư bản bán hàng hóa cao hơn giá trị thì:',a:'p>m',b:'p<m',c:'p=m',d:'p=0',ans:'A'},
-  {q:'Khi Cung > Cầu, nhà tư bản bán hàng hóa thấp hơn giá trị thì:',a:'p>m',b:'p<m',c:'p=m',d:'p=0',ans:'B'},
-  {q:'Trên phạm vi toàn xã hội, tổng lợi nhuận luôn như thế nào với tổng giá trị thặng dư?',a:'Lớn hơn',b:'Nhỏ hơn',c:'Bằng nhau',d:'Gấp đôi',ans:'C'},
-  {q:'Phạm trù nào che đậy mối quan hệ bóc lột giữa tư bản và lao động?',a:'Giá trị thặng dư',b:'Lợi nhuận',c:'Lao động cụ thể',d:'Giá trị sử dụng',ans:'B'},
-  {q:'Câu nói "Với 300% lợi nhuận, nó sẵn sàng phạm bất cứ tội lỗi nào" là của ai?',a:'C. Mác',b:'T.J. Dunning',c:'Lênin',d:'Ăng-ghen',ans:'B'},
-  {q:'Động cơ cốt lõi của chủ nghĩa tư bản là gì?',a:'Phục vụ nhân dân',b:'Lợi nhuận',c:'Phát triển văn hóa',d:'Bảo vệ môi trường',ans:'B'},
-  {q:'Sự giàu có chân chính của một xã hội theo học thuyết Mác phải dựa trên:',a:'Đầu cơ bất động sản',b:'Thao túng giá cả',c:'Một nền sản xuất có thực',d:'Các sản phẩm phái sinh',ans:'C'},
-  {q:'Lợi nhuận có vai trò gì trong nền kinh tế thị trường định hướng XHCN tại Việt Nam?',a:'Là công cụ bóc lột duy nhất',b:'Là động lực kích thích cải tiến kỹ thuật, tăng năng suất',c:'Không có vai trò gì',d:'Cần phải triệt tiêu hoàn toàn',ans:'B'},
-  {q:'Điểm khác biệt về "vị trí" giữa m và p là:',a:'m ở lưu thông, p ở sản xuất',b:'m ở sản xuất, p ở lưu thông',c:'Cả hai đều ở sản xuất',d:'Cả hai đều ở lưu thông',ans:'B'},
-  {q:'Theo C. Mác, sự hao phí sức lao động nói chung được gọi là gì?',a:'Lao động cụ thể',b:'Lao động trừu tượng',c:'Lao động giản đơn',d:'Lao động phức tạp',ans:'B'},
-  {q:'Lao động cụ thể là nguồn gốc tạo ra thuộc tính nào sau đây?',a:'Giá trị của hàng hóa',b:'Giá trị trao đổi',c:'Giá trị sử dụng (công dụng)',d:'Giá trị thặng dư',ans:'C'},
-  {q:'Thành phần nào sau đây thuộc về "Hao phí lao động quá khứ"?',a:'Tiền lương trả cho công nhân',b:'Giá trị vật tư, nguyên liệu, máy móc tiêu dùng',c:'Giá trị thặng dư tạo ra thêm',d:'Sức lao động của người công nhân',ans:'B'},
-  {q:'Giá trị của một đơn vị hàng hóa được cấu thành từ những bộ phận nào?',a:'Chỉ gồm tiền lương của công nhân',b:'Chỉ gồm chi phí máy móc',c:'Lao động quá khứ và lao động mới kết tinh thêm',d:'Lợi nhuận và tiền thuế',ans:'C'},
-  {q:'Tại sao nhà tư bản thu được giá trị thặng dư?',a:'Vì họ có tài kinh doanh',b:'Vì họ kéo dài thời gian lao động vượt mức thời gian cần thiết',c:'Vì máy móc tự tạo ra giá trị mới',d:'Vì họ bán hàng cao hơn giá trị',ans:'B'},
-  {q:'"Thời gian lao động cần thiết" là khoảng thời gian để công nhân làm gì?',a:'Tạo ra lợi nhuận cho nhà tư bản',b:'Bù đắp lại giá trị sức lao động (tiền lương) của chính họ',c:'Sản xuất xong một sản phẩm bất kỳ',d:'Nghỉ ngơi giữa ca làm việc',ans:'B'},
-  {q:'Giá trị thặng dư phản ánh mối quan hệ bản chất giữa các giai cấp nào?',a:'Nông dân và Địa chủ',b:'Chủ nô và Nô lệ',c:'Tư sản và Công nhân',d:'Thương nhân và Người tiêu dùng',ans:'C'},
-  {q:'Khi hàng hóa được bán ngang với giá trị, phát biểu nào sau đây đúng?',a:'p>m',b:'p<m',c:'p=m',d:'p=0',ans:'C'},
-  {q:'Theo quan điểm của nhà tư bản trên bề mặt kinh tế, lợi nhuận được coi là gì?',a:'Phần lao động không công của công nhân',b:'Khoản "tiền thưởng" do mua bán, lưu thông mang lại',c:'Giá trị trừu tượng của hàng hóa',d:'Chi phí sản xuất thực tế',ans:'B'},
-  {q:'Sự khác biệt lớn nhất về "vị trí" giữa m và p là gì?',a:'m tạo ra ở lưu thông, p tạo ra ở sản xuất',b:'m tạo ra ở sản xuất, p được hiện thực hóa ở lưu thông',c:'Cả hai đều tạo ra ở khâu tiêu dùng',d:'Cả hai không có mối liên hệ nào',ans:'B'},
-  {q:'Tại sao nói Lợi nhuận che đậy bản chất bóc lột của Giá trị thặng dư?',a:'Vì nó làm người ta lầm tưởng tiền tự sinh ra tiền',b:'Vì lợi nhuận luôn nhỏ hơn giá trị thặng dư',c:'Vì lợi nhuận chỉ dành cho công nhân',d:'Vì lợi nhuận không thể đo lường được',ans:'A'},
-  {q:'Trong trường hợp Cung > Cầu, nhà tư bản sẽ thu được:',a:'p=m',b:'p>m',c:'p<m',d:'Không thu được gì',ans:'C'},
-  {q:'Trên phạm vi toàn xã hội, tổng lợi nhuận quan hệ thế nào với tổng giá trị thặng dư?',a:'Luôn lớn hơn do có thuế',b:'Luôn nhỏ hơn do hao hụt',c:'Luôn bằng nhau',d:'Không thể so sánh',ans:'C'},
-  {q:'Theo C. Mác, sự giàu có chân chính phải dựa trên:',a:'Các hoạt động đầu cơ bất động sản',b:'Một nền sản xuất có thực với lao động sống sáng tạo',c:'Việc thao túng giá cả thị trường',d:'Việc mua bán các tài sản phái sinh',ans:'B'},
-  {q:'Nhận định "Với 300% lợi nhuận, tư bản sẵn sàng phạm bất cứ tội lỗi nào" nhấn mạnh điều gì?',a:'Lợi nhuận là động lực thúc đẩy đạo đức',b:'Bản chất tàn nhẫn và sức chi phối khủng khiếp của mục tiêu lợi nhuận',c:'Tư bản luôn tuân thủ pháp luật',d:'Lợi nhuận không quan trọng bằng uy tín',ans:'B'},
-  {q:'Trong kinh tế thị trường định hướng XHCN tại Việt Nam, lợi nhuận có vai trò gì?',a:'Là yếu tố cần loại bỏ hoàn toàn',b:'Là động lực kích thích cải tiến kỹ thuật và tăng năng suất',c:'Là nguồn gốc duy nhất của sự bất công',d:'Không có ảnh hưởng đến nền kinh tế',ans:'B'},
-  {q:'Chi phí sản xuất của nhà tư bản bao gồm những gì?',a:'Chỉ gồm tiền nguyên liệu',b:'Tiền mua tư liệu sản xuất và tiền thuê sức lao động',c:'Chỉ gồm tiền lương trả cho công nhân',d:'Tổng giá trị thặng dư dự kiến',ans:'B'},
-  {q:'Lao động nào là "nội dung", là "cơ sở khách quan" tạo ra giá trị hàng hóa?',a:'Lao động cụ thể',b:'Lao động trừu tượng',c:'Lao động giản đơn',d:'Lao động quá khứ',ans:'B'},
-  {q:'Hình thái hiện tượng bên ngoài của giá trị thặng dư được gọi là gì?',a:'Giá trị sử dụng',b:'Tiền lương',c:'Lợi nhuận',d:'Chi phí vật tư',ans:'C'},
-  {q:'Khi nhà tư bản bán hàng hóa cao hơn giá trị thì:',a:'p=m',b:'p<m',c:'p>m',d:'p=0',ans:'C'},
-  {q:'Ai là tác giả của tác phẩm "Tư bản" (Das Kapital)?',a:'Adam Smith',b:'David Ricardo',c:'C. Mác',d:'T.J. Dunning',ans:'C'},
-  {q:'"Hao phí lao động mới" do ai tạo ra?',a:'Máy móc thiết bị',b:'Người lao động sống trong quá trình sản xuất',c:'Nhà tư bản khi quản lý',d:'Các yếu tố nguyên liệu tự nhiên',ans:'B'},
-  {q:'Giá trị thặng dư là phần lao động:',a:'Có công của nhà tư bản',b:'Không công của công nhân bị chiếm đoạt',c:'Được trả lương đầy đủ',d:'Do lưu thông tạo ra',ans:'B'},
-  {q:'Phạm trù nào là "tấm màn ảo ảnh" che giấu nguồn gốc lao động không công?',a:'Giá trị hàng hóa',b:'Lợi nhuận',c:'Lao động cụ thể',d:'Giá trị sử dụng',ans:'B'},
-  {q:'Yếu tố nào làm cho Lợi nhuận biến động xung quanh Giá trị thặng dư?',a:'Trình độ tay nghề của công nhân',b:'Quan hệ cung - cầu và giá cả thị trường',c:'Sự thay đổi của máy móc',d:'Ý chí của nhà tư bản',ans:'B'},
-  {q:'Lao động trừu tượng kết tinh lại tạo thành:',a:'Công dụng của sản phẩm',b:'Giá trị của hàng hóa',c:'Hình dáng của hàng hóa',d:'Tên gọi của hàng hóa',ans:'B'},
-  {q:'Nhà tư bản thu được p>m khi nào?',a:'Bán đúng giá trị',b:'Bán thấp hơn giá trị',c:'Bán cao hơn giá trị',d:'Không bao giờ thu được',ans:'C'},
-  {q:'Giá trị thặng dư (m) là một đại lượng:',a:'Luôn biến động theo giá cả',b:'Khách quan, cố định dựa trên lượng lao động không công kết tinh',c:'Do người tiêu dùng quyết định',d:'Phụ thuộc vào tài quảng cáo',ans:'B'},
-  {q:'T.J. Dunning cho rằng tư bản sẵn sàng bị treo cổ ở mức lợi nhuận bao nhiêu?',a:'100%',b:'200%',c:'300%',d:'500%',ans:'C'},
-  {q:'Theo bài thuyết trình, sự giàu có bền vững KHÔNG nên dựa trên:',a:'Cải tiến kỹ thuật',b:'Nền sản xuất thực',c:'Thao túng giá cả thị trường và đầu cơ',d:'Tăng năng suất lao động',ans:'C'},
-  {q:'Theo T.J. Dunning, mức lợi nhuận nào khiến tư bản "hành động bất chấp tội ác"?',a:'50%',b:'100%',c:'200%',d:'300%',ans:'C'},
-  {q:'T.J. Dunning cho rằng với mức lợi nhuận 100%, tư bản sẽ làm gì?',a:'Sẵn sàng bị treo cổ',b:'Chà đạp lên mọi luật lệ',c:'Hoạt động từ thiện',d:'Cải tiến kỹ thuật',ans:'B'},
-  {q:'Học thuyết nào là phát hiện vĩ đại nhất của C. Mác để vạch trần bản chất chủ nghĩa tư bản?',a:'Học thuyết về các hình thái kinh tế',b:'Học thuyết Giá trị thặng dư',c:'Học thuyết về tôn giáo',d:'Học thuyết về phân chia giai cấp',ans:'B'},
-  {q:'Lao động trừu tượng là gì?',a:'Lao động của người thợ may',b:'Sự hao phí sức lao động nói chung (cơ bắp, thần kinh, trí óc)',c:'Lao động tạo ra công dụng của cái áo',d:'Lao động không có mục đích',ans:'B'},
-  {q:'"Hao phí lao động quá khứ" bao gồm những yếu tố nào?',a:'Tiền lương công nhân',b:'Giá trị vật tư, nhiên liệu, máy móc tiêu dùng',c:'Lợi nhuận của nhà tư bản',d:'Giá trị thặng dư siêu ngạch',ans:'B'},
-  {q:'"Hao phí lao động mới" do đối tượng nào tạo ra?',a:'Máy móc tự động',b:'Người lao động sống trong quá trình sản xuất',c:'Nhà đầu tư khi bỏ vốn',d:'Người tiêu dùng khi mua hàng',ans:'B'},
-  {q:'Giá trị thặng dư (m) là phần lao động mới kết tinh thêm ngoài mức nào?',a:'Mức thuế phải nộp',b:'Mức thù lao (tiền lương) của công nhân',c:'Mức khấu hao máy móc',d:'Mức giá cả thị trường',ans:'B'},
-  {q:'Bản chất của giá trị thặng dư phản ánh mối quan hệ giữa:',a:'Người mua và Người bán',b:'Giai cấp tư sản và Giai cấp công nhân',c:'Nhà nước và Doanh nghiệp',d:'Nông dân và Thương nhân',ans:'B'},
-  {q:'Theo C. Mác, lợi nhuận (p) chẳng qua chỉ là gì?',a:'Tiền thưởng từ ngân hàng',b:'Hình thái biến tướng của giá trị thặng dư',c:'Chi phí sản xuất hàng hóa',d:'Tiền công quản lý của nhà tư bản',ans:'B'},
-  {q:'Nhà tư bản thu được lợi nhuận khi bán hàng hóa ở mức giá nào?',a:'Thấp hơn chi phí sản xuất',b:'Ngang giá trị hoặc cao hơn giá trị',c:'Bằng với tiền lương trả cho công nhân',d:'Bằng 0',ans:'B'},
-  {q:'Trên bề mặt nền kinh tế thị trường, lợi nhuận xuất hiện như một khoản gì?',a:'Khoản nợ của xã hội',b:'Khoản "tiền thưởng" của việc mua bán, lưu thông',c:'Phần đóng góp cho công nhân',d:'Chi phí bảo trì máy móc',ans:'B'},
-  {q:'Điểm khác biệt về bản chất giữa m và p là gì?',a:'m là hiện tượng, p là bản chất',b:'m là bản chất bên trong, p là hình thái hiện tượng bên ngoài',c:'Cả hai đều là bản chất bên trong',d:'Không có sự khác biệt',ans:'B'},
-  {q:'Phạm trù nào làm người ta lầm tưởng "tiền tự sinh ra tiền"?',a:'Giá trị thặng dư',b:'Lợi nhuận',c:'Lao động cụ thể',d:'Giá trị sử dụng',ans:'B'},
-  {q:'Giá trị thặng dư (m) được tạo ra duy nhất trong lĩnh vực nào?',a:'Lưu thông',b:'Sản xuất',c:'Tiêu dùng',d:'Phân phối',ans:'B'},
-  {q:'Lợi nhuận (p) được hiện thực hóa trong lĩnh vực nào?',a:'Sản xuất',b:'Lưu thông (thị trường)',c:'Trong nhà kho',d:'Trong ý tưởng của nhà tư bản',ans:'B'},
-  {q:'Quan hệ về lượng giữa p và p phụ thuộc vào yếu tố nào?',a:'Trình độ học vấn của công nhân',b:'Quan hệ cung - cầu và giá cả thị trường',c:'Độ bền của máy móc',d:'Thời tiết và khí hậu',ans:'B'},
-  {q:'Khi Cung = Cầu, giá cả bằng giá trị thì:',a:'p>m',b:'p<m',c:'p=m',d:'p=0',ans:'C'},
-  {q:'Khi Cung > Cầu, nhà tư bản bán hàng thấp hơn giá trị thì:',a:'p>m',b:'p<m',c:'p=m',d:'Không có lợi nhuận',ans:'B'},
-  {q:'Khi Cung < Cầu, giá cả cao hơn giá trị thì:',a:'p>m',b:'p<m',c:'p=m',d:'p không đổi',ans:'A'},
-  {q:'Xét trên phạm vi toàn xã hội, tổng lợi nhuận quan hệ thế nào với tổng giá trị thặng dư?',a:'Tổng p lớn hơn Tổng m',b:'Tổng p nhỏ hơn Tổng m',c:'Tổng p luôn bằng Tổng m',d:'Tổng p gấp đôi Tổng m',ans:'C'},
-  {q:'Lợi nhuận được ví như cái gì để che giấu nguồn gốc lao động không công?',a:'Một ngọn đèn sáng',b:'Một tấm màn ảo ảnh',c:'Một thước đo chính xác',d:'Một động cơ vĩnh cửu',ans:'B'},
-  {q:'Trong nền kinh tế thị trường XHCN ở Việt Nam, lợi nhuận được thừa nhận là:',a:'Yếu tố gây kìm hãm sản xuất',b:'Động lực mạnh mẽ kích thích cải tiến kỹ thuật',c:'Nguyên nhân duy nhất gây lạm phát',d:'Công cụ để xóa bỏ sản xuất',ans:'B'},
-  {q:'Một quốc gia giàu có bền vững KHÔNG nên chỉ dựa vào:',a:'Sản xuất thực',b:'Đầu cơ và thao túng giá cả thị trường',c:'Tăng năng suất lao động',d:'Sáng tạo giá trị mới',ans:'B'},
-  {q:'Sự giàu có chân chính của một xã hội phải dựa trên yếu tố nào?',a:'Số lượng tiền mặt in ra',b:'Một nền sản xuất có thực',c:'Việc mua bán các tài sản phái sinh',d:'Sự biến động của sàn chứng khoán',ans:'B'},
-  {q:'Lao động sống kết tinh nên những giá trị mới được gọi là:',a:'Lao động quá khứ',b:'Lao động sáng tạo',c:'Lao động cụ thể tạo giá trị',d:'Lao động không mục đích',ans:'B'},
-  {q:'Chi phí thực tế bằng tiền để mua tư liệu sản xuất và sức lao động được gọi là gì?',a:'Giá trị thặng dư',b:'Chi phí sản xuất',c:'Lợi nhuận ròng',d:'Giá trị sử dụng',ans:'B'},
-  {q:'Tại sao nhà tư bản quan tâm đến lợi nhuận hơn giá trị thặng dư?',a:'Vì lợi nhuận dễ tính hơn',b:'Vì lợi nhuận là hình thức biểu hiện trực tiếp tiền thu về trong lưu thông',c:'Vì họ không biết đến giá trị thặng dư',d:'Vì lợi nhuận luôn lớn hơn giá trị thặng dư',ans:'B'},
-  {q:'"Giá trị thặng dư là nội dung, là cơ sở khách quan" còn "Lợi nhuận là..."?',a:'Bản chất',b:'Hình thức biểu hiện ra bên ngoài',c:'Kết quả không liên quan',d:'Chi phí phát sinh',ans:'B'},
-  {q:'Ai là người trích dẫn nhận định của T.J. Dunning trong "Tư bản"?',a:'V.I. Lênin',b:'C. Mác',c:'Ph. Ăng-ghen',d:'Adam Smith',ans:'B'},
-  {q:'Lao động của người sản xuất hàng hóa có tính chất:',a:'Một mặt',b:'Hai mặt (lao động cụ thể và lao động trừu tượng)',c:'Ba mặt',d:'Không có tính chất gì',ans:'B'},
-  {q:'Lao động cụ thể phản ánh thuộc tính gì của lao động?',a:'Thuộc tính xã hội',b:'Thuộc tính tự nhiên, kỹ thuật (hình thức chuyên môn)',c:'Thuộc tính kinh tế',d:'Thuộc tính trừu tượng',ans:'B'},
-  {q:'Phần giá trị vật tư, máy móc đã tiêu dùng được gọi là:',a:'Giá trị mới',b:'Giá trị cũ (lao động quá khứ)',c:'Giá trị thặng dư',d:'Giá trị trao đổi',ans:'B'},
-  {q:'Nhà tư bản chiếm đoạt phần nào của công nhân?',a:'Phần lao động cần thiết',b:'Phần lao động không công (giá trị thặng dư)',c:'Toàn bộ tài sản cá nhân',d:'Công cụ lao động của công nhân',ans:'B'},
-  {q:'Lợi nhuận (p) thường xuyên biến động quanh m là do:',a:'Sự thay đổi của máy móc',b:'Quan hệ cung - cầu và giá cả',c:'Ý muốn chủ quan của nhà tư bản',d:'Thuế suất của nhà nước',ans:'B'},
-  {q:'Khi bán hàng hóa cao hơn giá trị, nhà tư bản thu được:',a:'p=m',b:'p>m',c:'p<m',d:'p=0',ans:'B'},
-  {q:'"Tấm màn ảo ảnh" che giấu sự bóc lột nói về phạm trù nào?',a:'Giá trị',b:'Lợi nhuận',c:'Sức lao động',d:'Tiền lương',ans:'B'},
-  {q:'Mục tiêu cốt lõi của chủ nghĩa tư bản là gì?',a:'Phát triển giáo dục',b:'Thu lợi nhuận tối đa',c:'Bảo vệ môi trường',d:'Xây dựng công bằng xã hội',ans:'B'},
-  {q:'Thành phần nào tạo ra "Giá trị" của hàng hóa?',a:'Lao động cụ thể',b:'Lao động trừu tượng',c:'Máy móc hiện đại',d:'Địa điểm bán hàng',ans:'B'},
-  {q:'Giá trị thặng dư được đo lường dựa trên đại lượng nào?',a:'Sự hài lòng của khách hàng',b:'Lượng lao động không công đã kết tinh',c:'Số lượng tiền mặt trong két sắt',d:'Giá cổ phiếu trên sàn',ans:'B'},
-  {q:'Phạm trù nào thuộc lĩnh vực sản xuất?',a:'Lợi nhuận (p)',b:'Giá trị thặng dư (m)',c:'Giá cả thị trường',d:'Phí lưu thông',ans:'B'},
-  {q:'"Tổng giá cả luôn bằng tổng giá trị" dẫn đến kết luận nào?',a:'Tổng p luôn lớn hơn tổng m',b:'Tổng p luôn bằng tổng m',c:'Tổng p luôn nhỏ hơn tổng m',d:'Không có kết luận nào',ans:'B'},
-  {q:'Lợi nhuận xuất hiện làm người ta lầm tưởng cái gì tạo ra giá trị?',a:'Lao động của công nhân',b:'Tài buôn bán hoặc tiền tự đẻ ra tiền',c:'Nguyên liệu thô',d:'Chính sách của nhà nước',ans:'B'},
-  {q:'Nhận định nào ĐÚNG về giá trị thặng dư?',a:'Nó là phần thưởng cho sự rủi ro',b:'Nó là kết quả của việc mua rẻ bán đắt',c:'Nó là lao động không công của công nhân bị chiếm đoạt',d:'Nó do máy móc tạo ra',ans:'C'},
-  {q:'Sự chênh lệch dương giữa giá bán và chi phí sản xuất được gọi là:',a:'Tiền lương',b:'Lợi nhuận',c:'Thuế',d:'Khấu hao',ans:'B'},
-  {q:'"Lao động sống không ngừng sáng tạo" tạo ra cái gì cho nhân loại?',a:'Các khoản nợ',b:'Những giá trị mới',c:'Sự lười biếng',d:'Các cuộc khủng hoảng',ans:'B'},
-  {q:'Học thuyết Mác nhắc nhở sự giàu có bền vững dựa trên:',a:'Đầu cơ bất động sản',b:'Một nền sản xuất có thực',c:'Thao túng thị trường vàng',d:'In thêm tiền giấy',ans:'B'},
-  {q:'Khi nhà tư bản bán đúng giá trị hàng hóa, thì họ:',a:'Không có lãi',b:'Thu được lợi nhuận bằng giá trị thặng dư',c:'Bị lỗ vốn',d:'Chỉ thu hồi được tiền lương',ans:'B'},
-  {q:'Bản chất thực sự của lợi nhuận là gì?',a:'Là sự sáng tạo của nhà tư bản',b:'Là hình thái biến tướng của giá trị thặng dư',c:'Là kết quả của may mắn',d:'Là sự đóng góp của người tiêu dùng',ans:'B'}
+{q:'Thuật ngữ khoa học "kinh tế chính trị" xuất hiện lần đầu tiên vào năm nào?',a:'1615',b:'1776',c:'1818',d:'1867',ans:'A'},
+{q:'Ai là người đầu tiên đề xuất môn khoa học kinh tế chính trị trong tác phẩm "Chuyên luận về kinh tế chính trị"?',a:'Adam Smith',b:'Antoine de Montchrétien',c:'Karl Marx',d:'David Ricardo',ans:'B'},
+{q:'Hệ thống lý luận kinh tế chính trị nào bước đầu nghiên cứu nền sản xuất tư bản chủ nghĩa và cho rằng nguồn gốc lợi nhuận là từ lưu thông?',a:'Chủ nghĩa trọng nông',b:'Chủ nghĩa trọng thương',c:'Kinh tế chính trị cổ điển Anh',d:'Kinh tế học tân cổ điển',ans:'B'},
+{q:'Chủ nghĩa trọng nông hướng việc nghiên cứu kinh tế chính trị vào lĩnh vực nào?',a:'Thương mại quốc tế',b:'Lưu thông phân phối',c:'Sản xuất nông nghiệp',d:'Sản xuất công nghiệp',ans:'C'},
+{q:'Hệ thống lý luận nào trình bày một cách hệ thống các phạm trù giá trị, tiền tệ, tiền lương, lợi nhuận và rút ra kết luận giá trị do hao phí lao động tạo ra?',a:'Chủ nghĩa trọng thương',b:'Chủ nghĩa trọng nông',c:'Kinh tế chính trị cổ điển Anh',d:'Kinh tế chính trị tiểu tư sản',ans:'C'},
+{q:'C. Mác đã kế thừa trực tiếp thành quả lý luận của ai để xây dựng hệ thống lý luận kinh tế chính trị của mình?',a:'Antoine de Montchrétien',b:'William Petty',c:'Adam Smith',d:'David Ricardo',ans:'D'},
+{q:'Tác phẩm nào thể hiện tập trung và cô đọng nhất hệ thống lý luận kinh tế chính trị của C. Mác và Ph. Ăngghen?',a:'Chuyên luận về kinh tế chính trị',b:'Của cải của các quốc gia',c:'Bộ Tư bản',d:'Tuyên ngôn của Đảng Cộng sản',ans:'C'},
+{q:'Bước nhảy vọt về lý luận khoa học của C. Mác so với D. Ricardo trong kinh tế chính trị là việc phát hiện ra điều gì?',a:'Khái niệm hàng hóa',b:'Tính hai mặt của lao động sản xuất hàng hóa',c:'Nguồn gốc của tiền tệ',d:'Quy luật cung cầu',ans:'B'},
+{q:'Người có công lao lớn nhất trong việc kế thừa, bổ sung và phát triển lý luận kinh tế chính trị C. Mác trong giai đoạn CNTB độc quyền là ai?',a:'Ph. Ăngghen',b:'V.I. Lênin',c:'J.M. Keynes',d:'P. Samuelson',ans:'B'},
+{q:'Theo C. Mác và Ph. Ăngghen, đối tượng nghiên cứu của kinh tế chính trị Mác - Lênin là gì?',a:'Yếu tố vật chất của lực lượng sản xuất',b:'Các hiện tượng kinh tế trên bề mặt xã hội',c:'Các quan hệ xã hội của sản xuất và trao đổi',d:'Biểu hiện kỹ thuật của quá trình sản xuất',ans:'C'},
+{q:'Kinh tế chính trị Mác - Lênin nghiên cứu quan hệ xã hội của sản xuất và trao đổi trong mối liên hệ biện chứng với yếu tố nào?',a:'Tâm lý và hành vi người tiêu dùng',b:'Lực lượng sản xuất và kiến trúc thượng tầng tương ứng',c:'Tự nhiên và môi trường sinh thái',d:'Nền kinh tế kế hoạch hóa tập trung',ans:'B'},
+{q:'Mục đích nghiên cứu ở cấp độ cao nhất của kinh tế chính trị Mác - Lênin là gì?',a:'Tối đa hóa lợi nhuận cho doanh nghiệp',b:'Giải quyết tình trạng khan hiếm nguồn lực',c:'Phát hiện ra các quy luật chi phối quan hệ giữa người với người trong sản xuất và trao đổi',d:'Phân tích sự biến động của giá cả chứng khoán',ans:'C'},
+{q:'Nhận định nào sau đây là đúng về quy luật kinh tế?',a:'Tồn tại khách quan, không phụ thuộc vào ý chí con người',b:'Là sản phẩm chủ quan của con người',c:'Có thể được thủ tiêu bằng các mệnh lệnh hành chính',d:'Chỉ phát huy tác dụng khi có nhà nước can thiệp',ans:'A'},
+{q:'Chính sách kinh tế khác với quy luật kinh tế ở điểm nào?',a:'Chính sách kinh tế mang tính khách quan',b:'Chính sách kinh tế không tác động vào lợi ích',c:'Chính sách kinh tế là sản phẩm chủ quan của con người',d:'Chính sách kinh tế không thể thay đổi được',ans:'C'},
+{q:'Phương pháp nghiên cứu chủ yếu và đặc thù của kinh tế chính trị Mác - Lênin là phương pháp nào?',a:'Phương pháp toán học và mô hình hóa',b:'Phương pháp trừu tượng hóa khoa học',c:'Phương pháp thí nghiệm trong phòng thí nghiệm',d:'Phương pháp điều tra xã hội học',ans:'B'},
+{q:'Phương pháp trừu tượng hóa khoa học được hiểu là:',a:'Tổng hợp tất cả các hiện tượng ngẫu nhiên để tìm bản chất',b:'Gạt bỏ những hiện tượng tạm thời, ngẫu nhiên để tách ra những dấu hiệu điển hình, bền vững',c:'Đo lường chính xác các đại lượng kinh tế bằng toán học',d:'Lập bảng thống kê các số liệu kinh tế vĩ mô',ans:'B'},
+{q:'Chức năng cung cấp hệ thống tri thức lý luận về sự vận động của các quan hệ sản xuất và trao đổi là biểu hiện của chức năng nào của KTCT Mác - Lênin?',a:'Chức năng phương pháp luận',b:'Chức năng thực tiễn',c:'Chức năng nhận thức',d:'Chức năng tư tưởng',ans:'C'},
+{q:'Khi nghiên cứu KTCT Mác - Lênin giúp người lao động và nhà hoạch định chính sách hình thành năng lực vận dụng quy luật kinh tế vào đời sống. Đó là chức năng gì?',a:'Chức năng nhận thức',b:'Chức năng thực tiễn',c:'Chức năng tư tưởng',d:'Chức năng phương pháp luận',ans:'B'},
+{q:'Việc KTCT Mác - Lênin cung cấp nền tảng lý luận khoa học cho việc nhận diện sâu hơn nội hàm của các khoa học kinh tế chuyên ngành thể hiện chức năng nào?',a:'Chức năng nhận thức',b:'Chức năng tư tưởng',c:'Chức năng phương pháp luận',d:'Chức năng thực tiễn',ans:'C'},
+{q:'Chức năng tư tưởng của kinh tế chính trị Mác - Lênin hướng tới điều gì?',a:'Góp phần xây dựng lý tưởng khoa học, phấn đấu vì dân giàu, nước mạnh, công bằng, văn minh',b:'Trang bị kỹ năng quản lý doanh nghiệp',c:'Đưa ra các công thức toán học về lợi nhuận',d:'Hướng dẫn cách thức đầu tư chứng khoán',ans:'A'},
+{q:'Sản xuất hàng hóa là kiểu tổ chức kinh tế mà ở đó sản phẩm được tạo ra nhằm mục đích gì?',a:'Thỏa mãn nhu cầu tiêu dùng trực tiếp của người sản xuất',b:'Tích lũy cho nhà nước',c:'Trao đổi, mua bán',d:'Biếu, tặng, viện trợ',ans:'C'},
+{q:'Nền kinh tế hàng hóa hình thành và phát triển dựa trên mấy điều kiện cơ bản?',a:'1',b:'2',c:'3',d:'4',ans:'B'},
+{q:'Sự phân chia lao động trong xã hội thành các ngành, các lĩnh vực sản xuất khác nhau được gọi là gì?',a:'Tách biệt về mặt kinh tế',b:'Hợp tác lao động',c:'Phân công lao động xã hội',d:'Phân hóa xã hội',ans:'C'},
+{q:'Điều kiện đủ để nền sản xuất hàng hóa ra đời và phát triển là gì?',a:'Sự ra đời của nhà nước',b:'Sự xuất hiện của tiền tệ',c:'Sự tách biệt về mặt kinh tế của các chủ thể sản xuất',d:'Phân công lao động xã hội',ans:'C'},
+{q:'Sự tách biệt về mặt kinh tế giữa các chủ thể sản xuất xuất hiện khách quan dựa trên cơ sở nào?',a:'Sự khác biệt về trình độ tay nghề',b:'Sự tách biệt về sở hữu tư liệu sản xuất',c:'Sự khác biệt về vị trí địa lý',d:'Sự ra đời của thị trường chứng khoán',ans:'B'},
+{q:'Hàng hóa là gì?',a:'Mọi sản phẩm do con người tạo ra',b:'Bất cứ thứ gì có sẵn trong tự nhiên có ích cho con người',c:'Sản phẩm của lao động, có thể thỏa mãn nhu cầu nào đó của con người thông qua trao đổi, mua bán',d:'Sản phẩm của lao động để tự tiêu dùng',ans:'C'},
+{q:'Hàng hóa có mấy thuộc tính?',a:'1',b:'2',c:'3',d:'4',ans:'B'},
+{q:'Giá trị sử dụng của hàng hóa được hiểu là gì?',a:'Số tiền mua được hàng hóa đó',b:'Công dụng của sản phẩm có thể thỏa mãn nhu cầu nào đó của con người',c:'Lao động xã hội của người sản xuất kết tinh trong hàng hóa',d:'Sự khan hiếm của sản phẩm trên thị trường',ans:'B'},
+{q:'Giá trị sử dụng của hàng hóa nhằm đáp ứng yêu cầu của đối tượng nào?',a:'Người sản xuất ra nó',b:'Người mua (xã hội)',c:'Người phân phối',d:'Cơ quan quản lý nhà nước',ans:'B'},
+{q:'Giá trị của hàng hóa là gì?',a:'Hao phí vật tư máy móc để tạo ra sản phẩm',b:'Lao động xã hội của người sản xuất hàng hóa kết tinh trong hàng hóa',c:'Giá cả của hàng hóa trên thị trường',d:'Độ bền và tính thẩm mỹ của sản phẩm',ans:'B'},
+{q:'Tỷ lệ trao đổi giữa các giá trị sử dụng khác nhau được gọi là gì?',a:'Giá cả hàng hóa',b:'Giá trị trao đổi',c:'Giá trị thặng dư',d:'Tiền tệ',ans:'B'},
+{q:'Sở dĩ các hàng hóa có giá trị sử dụng khác nhau có thể trao đổi được với nhau là vì:',a:'Chúng đều có ích cho con người',b:'Chúng đều là sản phẩm của tự nhiên',c:'Chúng đều có lượng lao động xã hội hao phí bằng nhau để tạo ra',d:'Chúng đều khan hiếm',ans:'C'},
+{q:'Cơ sở của tỷ lệ trao đổi giữa các hàng hóa là gì?',a:'Giá trị sử dụng',b:'Sự thỏa thuận ngẫu nhiên',c:'Giá trị của hàng hóa',d:'Mệnh lệnh của nhà nước',ans:'C'},
+{q:'Tính hai mặt của lao động sản xuất hàng hóa gồm:',a:'Lao động trí óc và lao động chân tay',b:'Lao động phức tạp và lao động giản đơn',c:'Lao động cụ thể và lao động trừu tượng',d:'Lao động quá khứ và lao động sống',ans:'C'},
+{q:'Ai là người đầu tiên phát hiện ra tính hai mặt của lao động sản xuất hàng hóa?',a:'Adam Smith',b:'David Ricardo',c:'Karl Marx',d:'V.I. Lênin',ans:'C'},
+{q:'Lao động cụ thể là gì?',a:'Lao động tạo ra giá trị của hàng hóa',b:'Lao động có ích dưới một hình thức cụ thể của những nghề nghiệp chuyên môn nhất định',c:'Sự hao phí sức lao động nói chung về cơ bắp và thần kinh',d:'Lao động của người nông dân',ans:'B'},
+{q:'Lao động trừu tượng tạo ra thuộc tính nào của hàng hóa?',a:'Giá trị sử dụng',b:'Cả giá trị sử dụng và giá trị',c:'Giá trị',d:'Hình dáng, kích thước của hàng hóa',ans:'C'},
+{q:'Lao động cụ thể phản ánh tính chất gì của lao động sản xuất hàng hóa?',a:'Tính chất xã hội',b:'Tính chất trừu tượng',c:'Tính chất tư nhân',d:'Tính chất tập thể',ans:'C'},
+{q:'Nguy cơ khủng hoảng tiềm ẩn trong nền kinh tế hàng hóa xuất hiện khi nào?',a:'Khi có sự thống nhất tuyệt đối giữa cung và cầu',b:'Khi mâu thuẫn giữa lao động tư nhân (lao động cụ thể) và lao động xã hội (lao động trừu tượng) không được giải quyết (hàng hóa không bán được)',c:'Khi giá cả bằng với giá trị',d:'Khi không có tiền tệ lưu thông',ans:'B'},
+{q:'Lượng giá trị của một đơn vị hàng hóa được đo lường bằng đại lượng nào?',a:'Thời gian lao động cá biệt',b:'Thời gian lao động xã hội cần thiết',c:'Khối lượng nguyên vật liệu hao phí',d:'Số lượng tiền mặt để mua hàng hóa đó',ans:'B'},
+{q:'Thời gian lao động xã hội cần thiết là thời gian đòi hỏi để sản xuất ra một giá trị sử dụng trong điều kiện nào?',a:'Điều kiện sản xuất tốt nhất, năng suất cao nhất',b:'Điều kiện sản xuất xấu nhất, năng suất thấp nhất',c:'Điều kiện bình thường của xã hội với trình độ thành thạo và cường độ lao động trung bình',d:'Điều kiện của doanh nghiệp độc quyền',ans:'C'},
+{q:'Cấu thành lượng giá trị của một đơn vị hàng hóa bao gồm những phần nào?',a:'Tiền công và lợi nhuận',b:'Hao phí lao động quá khứ và hao phí lao động mới kết tinh thêm',c:'Chi phí cố định và chi phí biến đổi',d:'Chi phí nguyên liệu và chi phí máy móc',ans:'B'},
+{q:'Năng suất lao động tăng lên sẽ làm cho lượng giá trị trong một đơn vị hàng hóa thay đổi như thế nào?',a:'Tăng lên',b:'Giảm xuống',c:'Không thay đổi',d:'Gấp đôi',ans:'B'},
+{q:'Đại lượng giá trị của một hàng hóa thay đổi tỷ lệ nghịch với nhân tố nào?',a:'Cường độ lao động',b:'Thời gian lao động xã hội cần thiết',c:'Năng suất lao động (sức sản xuất của lao động)',d:'Mức độ phức tạp của lao động',ans:'C'},
+{q:'Yếu tố nào sau đây KHÔNG phải là nhân tố ảnh hưởng đến năng suất lao động?',a:'Trình độ khéo léo trung bình của người lao động',b:'Các điều kiện tự nhiên',c:'Tốc độ thao tác khẩn trương của người lao động (chỉ làm tăng cường độ lao động)',d:'Mức độ áp dụng khoa học công nghệ vào sản xuất',ans:'C'},
+{q:'Khi tăng cường độ lao động, lượng giá trị của một đơn vị hàng hóa sẽ thay đổi như thế nào?',a:'Giảm xuống',b:'Tăng lên',c:'Không thay đổi',d:'Tăng gấp đôi',ans:'C'},
+{q:'Khi tăng cường độ lao động, tổng lượng giá trị của tất cả hàng hóa gộp lại sẽ thay đổi như thế nào?',a:'Không thay đổi',b:'Giảm xuống',c:'Tăng lên',d:'Tăng theo cấp số nhân',ans:'C'},
+{q:'Lao động phức tạp có đặc điểm gì so với lao động giản đơn?',a:'Đòi hỏi quá trình đào tạo chuyên môn, tạo ra nhiều giá trị hơn trong cùng thời gian',b:'Không cần qua đào tạo',c:'Tạo ra lượng giá trị bằng nhau trong cùng thời gian',d:'Chỉ tạo ra giá trị sử dụng, không tạo ra giá trị',ans:'A'},
+{q:'Theo lý luận của C. Mác, lao động phức tạp thực chất là gì?',a:'Lao động tạo ra công nghệ cao',b:'Lao động giản đơn được nhân bội lên',c:'Lao động có cường độ cao nhất',d:'Lao động trừu tượng',ans:'B'},
+{q:'Ai là người có lợi nhất khi hạ thấp hao phí lao động cá biệt xuống mức thấp hơn thời gian lao động xã hội cần thiết?',a:'Người tiêu dùng',b:'Nhà nước',c:'Người sản xuất có hao phí cá biệt thấp',d:'Tất cả mọi người sản xuất',ans:'C'},
+{q:'Hình thái ban đầu của giá trị xuất hiện trong thời kỳ sơ khai của trao đổi hàng hóa là hình thái nào?',a:'Hình thái chung của giá trị',b:'Hình thái tiền',c:'Hình thái giá trị giản đơn (ngẫu nhiên)',d:'Hình thái giá trị đầy đủ (mở rộng)',ans:'C'},
+{q:'Trong phương trình trao đổi: 1 con cừu = 2 cái rìu. Hàng hóa nào đóng vai trò là hình thái vật ngang giá?',a:'Con cừu',b:'Cái rìu',c:'Cả hai',d:'Không có vật ngang giá',ans:'B'},
+{q:'Sự khác biệt căn bản giữa hình thái chung của giá trị và hình thái tiền tệ là gì?',a:'Hình thái chung biểu hiện ở nhiều hàng hóa, hình thái tiền tệ cố định ở một hàng hóa làm vật ngang giá chung (thường là vàng)',b:'Hình thái tiền tệ không có vật ngang giá',c:'Hình thái chung chỉ dùng cho mua bán quốc tế',d:'Không có sự khác biệt',ans:'A'},
+{q:'Bản chất của tiền tệ là gì?',a:'Là một loại giấy chứng nhận có giá trị',b:'Là một loại hàng hóa đặc biệt, làm vật ngang giá chung cho thế giới hàng hóa',c:'Là tài sản của quốc gia',d:'Là sự quy ước chủ quan của con người',ans:'B'},
+{q:'Theo lý luận KTCT Mác - Lênin, tiền có mấy chức năng cơ bản?',a:'3',b:'4',c:'5',d:'6',ans:'C'},
+{q:'Giá cả hàng hóa là gì?',a:'Hình thức biểu hiện bằng tiền của giá trị hàng hóa',b:'Số lượng tiền mặt để thanh toán chi phí sản xuất',c:'Giá trị sử dụng của hàng hóa',d:'Mức độ khan hiếm của hàng hóa',ans:'A'},
+{q:'Để thực hiện chức năng thước đo giá trị, tiền cần có đặc điểm gì?',a:'Phải là tiền mặt thật sự',b:'Phải có đủ giá trị và chỉ cần một lượng tiền tưởng tượng',c:'Phải là tiền giấy do ngân hàng trung ương phát hành',d:'Phải là ngoại tệ',ans:'B'},
+{q:'Chức năng nào của tiền làm cho hành vi mua và hành vi bán có thể tách rời nhau về không gian và thời gian?',a:'Phương tiện thanh toán',b:'Phương tiện lưu thông',c:'Phương tiện cất trữ',d:'Tiền tệ thế giới',ans:'B'},
+{q:'Để thực hiện chức năng phương tiện cất trữ, tiền phải đáp ứng yêu cầu gì?',a:'Phải là tiền giấy mới tinh',b:'Phải là tiền điện tử',c:'Phải có đủ giá trị (tiền vàng, tiền bạc)',d:'Không cần có đủ giá trị',ans:'C'},
+{q:'Khi tiền được dùng để trả nợ, nộp thuế, trả tiền mua chịu hàng hóa, tiền đang thực hiện chức năng gì?',a:'Phương tiện lưu thông',b:'Phương tiện cất trữ',c:'Phương tiện thanh toán',d:'Thước đo giá trị',ans:'C'},
+{q:'Chức năng tiền tệ thế giới của tiền phát huy khi nào?',a:'Khi trao đổi hàng hóa vượt ra khỏi biên giới quốc gia',b:'Khi nền kinh tế bị lạm phát',c:'Khi có mua bán trả góp',d:'Khi nhà nước phát hành trái phiếu',ans:'A'},
+{q:'Theo C. Mác, dịch vụ là gì?',a:'Là hàng hóa vô hình',b:'Không phải là hàng hóa',c:'Chỉ là hành vi phục vụ không có giá trị',d:'Là hàng hóa hữu hình',ans:'A'},
+{q:'Điểm khác biệt cơ bản giữa dịch vụ và hàng hóa thông thường là gì?',a:'Dịch vụ không do lao động tạo ra',b:'Việc sản xuất và tiêu dùng dịch vụ diễn ra đồng thời, không thể cất trữ',c:'Dịch vụ không có giá cả',d:'Dịch vụ không có giá trị sử dụng',ans:'B'},
+{q:'Khi thực hiện mua bán quyền sử dụng đất, bản chất của hiện tượng này là gì?',a:'Mua bán đất đai (vật chất tự nhiên) như hàng hóa thông thường',b:'Trao đổi quyền sử dụng đất, loại hàng hóa đặc biệt không do hao phí lao động trực tiếp tạo ra',c:'Mua bán giá trị sức lao động của người nông dân',d:'Trao đổi giá trị sử dụng thuần túy',ans:'B'},
+{q:'Giá cả của quyền sử dụng đất KHÔNG chịu tác động chủ yếu bởi yếu tố nào dưới đây?',a:'Hao phí lao động trực tiếp để sản xuất ra mảnh đất đó',b:'Quan hệ cung - cầu và sự khan hiếm',c:'Tốc độ đô thị hóa, công nghiệp hóa',d:'Giá trị của tiền và đầu cơ',ans:'A'},
+{q:'Thương hiệu (danh tiếng) của doanh nghiệp có thể trao đổi, mua bán với giá rất cao. Điều kiện cốt lõi để thương hiệu có giá trị thực là gì?',a:'Dựa trên sự thổi phồng của truyền thông',b:'Dựa trên cơ sở một kiểu sản xuất hàng hóa, dịch vụ thực có chất lượng',c:'Dựa trên quyết định của nhà nước',d:'Dựa trên độc quyền thông tin',ans:'B'},
+{q:'Giá cả trong các vụ chuyển nhượng cầu thủ bóng đá nổi tiếng thực chất phản ánh điều gì?',a:'Mua bán bản thân con người cầu thủ',b:'Mua bán sức lao động, yếu tố tài năng, độ khan hiếm và lợi ích kỳ vọng của câu lạc bộ',c:'Mua bán hàng hóa vật thể thông thường',d:'Sự gian lận trên thị trường thể thao',ans:'B'},
+{q:'C. Mác gọi những loại hàng hóa như chứng khoán, chứng quyền, giấy tờ có giá là gì?',a:'Tư bản thực',b:'Tư bản khả biến',c:'Tư bản giả',d:'Tư bản bất biến',ans:'C'},
+{q:'Sự giàu có của toàn thể xã hội có thể dựa duy nhất vào việc buôn bán chứng khoán, bất động sản không?',a:'Có, vì thị trường này quay vòng vốn rất nhanh',b:'Có, vì đây là những ngành siêu lợi nhuận',c:'Không, xã hội cần phải dựa trên một nền sản xuất hàng hóa, dịch vụ thực',d:'Không, vì nhà nước cấm giao dịch',ans:'C'},
+{q:'Trong các giao dịch mua bán chứng khoán mang lại lợi nhuận cho một cá nhân, tiền chủ yếu thực hiện chức năng gì?',a:'Thước đo giá trị',b:'Tiền tệ thế giới',c:'Phương tiện thanh toán (chuyển tiền từ túi người này sang người khác)',d:'Phương tiện cất trữ',ans:'C'},
+{q:'Theo nghĩa trừu tượng, thị trường là gì?',a:'Một cái chợ cụ thể',b:'Siêu thị hoặc trung tâm thương mại',c:'Tổng hòa những quan hệ kinh tế, trong đó nhu cầu của các chủ thể được đáp ứng thông qua trao đổi, mua bán',d:'Phòng giao dịch chứng khoán',ans:'C'},
+{q:'Căn cứ vào đối tượng trao đổi, mua bán, thị trường được phân chia thành:',a:'Thị trường trong nước và thế giới',b:'Thị trường tự do và có điều tiết',c:'Thị trường hàng hóa và thị trường dịch vụ',d:'Thị trường cạnh tranh hoàn hảo và độc quyền',ans:'C'},
+{q:'Nhận định nào sau đây KHÔNG phải là vai trò của thị trường?',a:'Nơi thực hiện giá trị hàng hóa',b:'Nơi xóa bỏ hoàn toàn khoảng cách giàu nghèo',c:'Gắn kết nền kinh tế thành một chỉnh thể',d:'Kích thích sự sáng tạo, phân bổ nguồn lực hiệu quả',ans:'B'},
+{q:'"Bàn tay vô hình" điều chỉnh các quan hệ kinh tế là hình ảnh ví von của ai về cơ chế thị trường?',a:'Karl Marx',b:'David Ricardo',c:'Adam Smith',d:'V.I. Lênin',ans:'C'},
+{q:'Nền kinh tế thị trường là gì?',a:'Nền kinh tế tự cung tự cấp',b:'Nền kinh tế hàng hóa phát triển cao, được vận hành theo cơ chế thị trường',c:'Nền kinh tế chỉ có các doanh nghiệp nhà nước',d:'Nền kinh tế không có sự tồn tại của tiền tệ',ans:'B'},
+{q:'Đặc trưng phổ biến của mọi nền kinh tế thị trường là:',a:'Chỉ có một hình thức sở hữu duy nhất',b:'Nhà nước không can thiệp vào nền kinh tế',c:'Đóng cửa với thị trường thế giới',d:'Đa dạng chủ thể kinh tế, phân bổ nguồn lực qua thị trường, giá cả theo nguyên tắc thị trường',ans:'D'},
+{q:'Một trong những ưu thế nổi bật của nền kinh tế thị trường là gì?',a:'Luôn tự khắc phục được khủng hoảng',b:'Luôn tạo ra động lực cho sự sáng tạo của các chủ thể kinh tế',c:'Tự ngăn chặn suy thoái môi trường',d:'Tự động chia đều thu nhập cho mọi người',ans:'B'},
+{q:'Nhược điểm (khuyết tật) vốn có của nền kinh tế thị trường là gì?',a:'Làm triệt tiêu động lực lao động',b:'Luôn tiềm ẩn rủi ro khủng hoảng, phân hóa xã hội sâu sắc, suy thoái môi trường',c:'Không thỏa mãn được nhu cầu phong phú của con người',d:'Kìm hãm sự phát triển của công nghệ mới',ans:'B'},
+{q:'Để khắc phục khuyết tật của nền kinh tế thị trường, cần có vai trò của chủ thể nào?',a:'Người tiêu dùng',b:'Nhà nước',c:'Các doanh nghiệp nước ngoài',d:'Người môi giới',ans:'B'},
+{q:'Quy luật kinh tế cơ bản nhất của sản xuất hàng hóa là quy luật nào?',a:'Quy luật cung cầu',b:'Quy luật cạnh tranh',c:'Quy luật giá trị',d:'Quy luật lưu thông tiền tệ',ans:'C'},
+{q:'Quy luật giá trị yêu cầu việc sản xuất và trao đổi hàng hóa phải được tiến hành trên cơ sở nào?',a:'Hao phí lao động cá biệt lớn nhất',b:'Hao phí lao động cá biệt nhỏ nhất',c:'Hao phí lao động xã hội cần thiết',d:'Sở thích chủ quan của người mua',ans:'C'},
+{q:'Cơ chế hoạt động của quy luật giá trị bộc lộ thông qua hiện tượng nào trên thị trường?',a:'Sự thay đổi chất lượng hàng hóa',b:'Sự lên xuống của giá cả xoay quanh giá trị do tác động của cung cầu',c:'Sự can thiệp hành chính của nhà nước',d:'Sự phát triển của các hình thức tiền tệ',ans:'B'},
+{q:'Tác động nào sau đây KHÔNG phải là tác động của quy luật giá trị?',a:'Điều tiết sản xuất và lưu thông hàng hóa',b:'Cào bằng thu nhập của mọi người sản xuất',c:'Kích thích cải tiến kỹ thuật, hợp lý hóa sản xuất',d:'Phân hóa những người sản xuất thành người giàu, người nghèo',ans:'B'},
+{q:'Khi cung lớn hơn cầu trên thị trường, giá cả hàng hóa sẽ có xu hướng như thế nào so với giá trị?',a:'Lớn hơn giá trị',b:'Bằng giá trị',c:'Thấp hơn giá trị',d:'Cố định không đổi',ans:'C'},
+{q:'Quy luật kinh tế điều tiết mối quan hệ giữa bên bán và bên mua trên thị trường là quy luật nào?',a:'Quy luật giá trị',b:'Quy luật cung cầu',c:'Quy luật lưu thông tiền tệ',d:'Quy luật cạnh tranh',ans:'B'},
+{q:'Theo công thức M = (P.Q)/V của quy luật lưu thông tiền tệ, khối lượng tiền cần thiết cho lưu thông tỷ lệ nghịch với yếu tố nào?',a:'Tổng số giá cả hàng hóa (P.Q)',b:'Khối lượng hàng hóa (Q)',c:'Số vòng lưu thông của đồng tiền (V)',d:'Mức giá cả (P)',ans:'C'},
+{q:'Nếu lượng tiền giấy phát hành ra lưu thông vượt quá số lượng tiền vàng (hoặc khối lượng tiền cần thiết) thì hiện tượng kinh tế nào sẽ xảy ra?',a:'Giảm phát',b:'Lạm phát',c:'Tăng giá trị đồng tiền',d:'Hàng hóa giảm giá',ans:'B'},
+{q:'Sự ganh đua kinh tế giữa các chủ thể nhằm giành ưu thế để thu lợi ích tối đa được gọi là gì?',a:'Hợp tác',b:'Độc quyền',c:'Cạnh tranh',d:'Liên doanh',ans:'C'},
+{q:'Cạnh tranh trong nội bộ ngành là cạnh tranh giữa các doanh nghiệp sản xuất trong cùng một ngành hàng. Kết quả của loại cạnh tranh này là gì?',a:'Hình thành tỷ suất lợi nhuận bình quân',b:'Hình thành giá trị thị trường của từng loại hàng hóa',c:'Chuyển dịch vốn sang ngành khác',d:'Xóa bỏ hoàn toàn độc quyền',ans:'B'},
+{q:'Mục đích của cạnh tranh giữa các ngành là gì?',a:'Giảm hao phí lao động cá biệt',b:'Cải tiến kỹ thuật công nghệ',c:'Tìm nơi đầu tư có lợi nhất (tỷ suất lợi nhuận cao)',d:'Tăng cường uy tín thương hiệu',ans:'C'},
+{q:'Biện pháp của cạnh tranh giữa các ngành là gì?',a:'Áp dụng công nghệ mới trong xí nghiệp',b:'Tăng cường độ lao động của công nhân',c:'Tự do di chuyển nguồn vốn từ ngành này sang ngành khác',d:'Hạ thấp giá trị cá biệt',ans:'C'},
+{q:'Tác động tiêu cực của cạnh tranh (đặc biệt là cạnh tranh không lành mạnh) là gì?',a:'Thúc đẩy tiến bộ khoa học kỹ thuật',b:'Gây lãng phí nguồn lực xã hội và tổn hại môi trường kinh doanh',c:'Phân bổ nguồn lực hiệu quả hơn',d:'Đem lại nhiều hàng hóa rẻ và tốt hơn cho xã hội',ans:'B'},
+{q:'Vai trò chính của người sản xuất trong nền kinh tế thị trường là gì?',a:'Trực tiếp tiêu dùng sản phẩm của xã hội',b:'Cung cấp hàng hóa, dịch vụ đáp ứng nhu cầu xã hội với mục tiêu lợi nhuận và phải có trách nhiệm xã hội',c:'Ban hành chính sách kinh tế vĩ mô',d:'Môi giới mua bán',ans:'B'},
+{q:'Yếu tố nào từ phía người tiêu dùng có tính quyết định đến sự phát triển bền vững của người sản xuất?',a:'Nơi cư trú của người tiêu dùng',b:'Sở thích chính trị',c:'Sức mua và sự đa dạng về nhu cầu',d:'Trình độ học vấn',ans:'C'},
+{q:'Chủ thể trung gian trong thị trường (như môi giới chứng khoán, siêu thị, thương nhân) đóng vai trò gì?',a:'Trực tiếp tạo ra của cải vật chất',b:'Quản lý vĩ mô nền kinh tế',c:'Đóng vai trò cầu nối, kết nối thông tin giữa sản xuất và tiêu dùng',d:'Là người tiêu dùng cuối cùng',ans:'C'},
+{q:'Trong nền kinh tế thị trường, Nhà nước đóng vai trò chủ yếu gì?',a:'Quyết định giá cả của mọi loại hàng hóa',b:'Phân phối trực tiếp mọi nguồn lực cho người dân',c:'Quản lý vĩ mô, tạo lập môi trường kinh tế và khắc phục khuyết tật của thị trường',d:'Ngăn cấm mọi hoạt động cạnh tranh',ans:'C'},
+{q:'Để tăng cường năng lực cạnh tranh trong nội bộ ngành, các nhà tư bản/doanh nghiệp thường sử dụng biện pháp cơ bản nào?',a:'Chuyển hướng kinh doanh sang ngành khác',b:'Xin trợ cấp từ chính phủ',c:'Cải tiến kỹ thuật, hợp lý hóa sản xuất, tăng năng suất lao động',d:'Bán hàng hóa thấp hơn giá thành sản xuất',ans:'C'},
+{q:'Theo nguyên lý, quy luật giá trị sẽ đào thải những người sản xuất nào?',a:'Có hao phí lao động cá biệt bằng thời gian lao động xã hội cần thiết',b:'Có hao phí lao động cá biệt cao hơn mức xã hội chấp nhận mà không cải tiến',c:'Có hao phí lao động cá biệt thấp hơn thời gian lao động xã hội cần thiết',d:'Cả A, B và C đều sai',ans:'B'},
+{q:'Trong nền kinh tế hàng hóa, tiền tệ là "thước đo giá trị". Chức năng này thể hiện ở việc:',a:'Dùng tiền để mua chịu hàng hóa',b:'Dùng tiền dự trữ trong két sắt',c:'Biểu hiện và đo lường giá trị của tất cả các hàng hóa khác thành "giá cả"',d:'Dùng tiền để mua bán với nước ngoài',ans:'C'},
+{q:'Sự thống nhất biện chứng giữa lao động cụ thể và lao động trừu tượng chỉ tồn tại trong loại hình kinh tế nào?',a:'Kinh tế tự nhiên',b:'Sản xuất tự cấp tự túc',c:'Kinh tế hàng hóa',d:'Kinh tế cộng sản nguyên thủy',ans:'C'}
 ];
 
 // ========== FIREBASE ==========
@@ -382,7 +384,7 @@ const DB_PLAYERS = DB.ref('treasure_hunt_v2/players');
 let G={
   phase:'playing',board:[],
   pos:{r:0,c:0},prevPos:null,moveCount:0,
-  filterActive:false,fiftyFiftyCount:0,fiftyRemoved:[],cups:0,
+  filterActive:false,fiftyFiftyCount:0,fiftyRemoved:[],cups:0,totalMoves:0,
   myPlayerName:'',myPlayerId:'',
   charAnimTimeout:null,touchStart:null,
   questionMinimized:false,questionData:null,questionAnswers:null,
@@ -398,6 +400,7 @@ function loadIdentity(){
     if(d&&d.myPlayerName)G.myPlayerName=d.myPlayerName;
     if(typeof d?.cups==='number')G.cups=d.cups;
     if(typeof d?.fiftyFiftyCount==='number')G.fiftyFiftyCount=d.fiftyFiftyCount;
+    if(typeof d?.totalMoves==='number')G.totalMoves=d.totalMoves;
   }catch(e){}
 }
 function saveIdentity(){
@@ -407,6 +410,7 @@ function saveIdentity(){
       myPlayerId:G.myPlayerId,
       cups:G.cups,
       fiftyFiftyCount:G.fiftyFiftyCount,
+      totalMoves:G.totalMoves,
       lastSavedAt:Date.now()
     }))
   }catch(e){}
@@ -414,7 +418,7 @@ function saveIdentity(){
 function clearIdentity(){try{localStorage.removeItem('thSoloIdentity')}catch(e){}}
 function saveIdentityToFirebase(){
   if(!G.myPlayerId)return;
-  const payload={name:G.myPlayerName,playerId:G.myPlayerId,cups:G.cups,fiftyFiftyCount:G.fiftyFiftyCount,lastActive:firebase.database.ServerValue.TIMESTAMP};
+  const payload={name:G.myPlayerName,playerId:G.myPlayerId,cups:G.cups,fiftyFiftyCount:G.fiftyFiftyCount,totalMoves:G.totalMoves,lastActive:firebase.database.ServerValue.TIMESTAMP};
   DB_PLAYERS.child(G.myPlayerId).update(payload).catch(()=>{})
 }
 function setPlayerPresence(isOnline){
@@ -891,6 +895,8 @@ function movePlayer(dr,dc){
   if(cell.type==='finish'){
     G.lastCupGained=G.cups<999;
     if(G.lastCupGained)G.cups++;
+    G.totalMoves+=G.moveCount;
+    updatePlayerTotalMoves(G.totalMoves);
     G.phase='finished';
     updateCupDisplay();
     updatePlayerCups(G.cups);
@@ -945,7 +951,13 @@ function localAnswer(el,label){
     el.classList.add('bg-green-600');toast('✅ Chính xác!');
     G.board[G.currentCell.r][G.currentCell.c]={type:'empty',data:null}
   }else{
-    el.classList.add('bg-red-600');toast('❌ Sai! Lùi lại!');
+    el.classList.add('bg-red-600');
+    btns.forEach(b=>{
+      if(b.getAttribute('data-label')===qData.ans){
+        b.classList.add('bg-green-600');
+      }
+    });
+    toast('❌ Sai! Đáp án đúng đã được tô sáng. Lùi lại!');
     G.pos={...G.prevPos}
   }
   G.currentCell=null;G.questionMinimized=false;G.questionData=null;G.questionAnswers=null;G.fiftyRemoved=[];closePlayerModal();renderBoard();syncPlayer()
@@ -1004,6 +1016,10 @@ function updatePlayerFifty(val){
   G.fiftyFiftyCount=val;saveIdentity();
   DB_PLAYERS.child(G.myPlayerId+'/fiftyFiftyCount').set(val).catch(e=>{})
 }
+function updatePlayerTotalMoves(val){
+  G.totalMoves=val;saveIdentity();
+  DB_PLAYERS.child(G.myPlayerId+'/totalMoves').set(val).catch(e=>{})
+}
 
 // ========== LEADERBOARD + RANKING ==========
 let _lbOff=null;
@@ -1012,7 +1028,11 @@ function listenLeaderboard(){
   _lbOff=DB_PLAYERS.on('value',snap=>{
     const data=snap.val()||{};
     const players=Object.values(data).filter(Boolean).map(p=>({...p}));
-    G.leaderboardData=players.sort((a,b)=>(b.cups||0)-(a.cups||0));
+    G.leaderboardData=players.sort((a,b)=>{
+      const cupDiff=(b.cups||0)-(a.cups||0);
+      if(cupDiff!==0)return cupDiff;
+      return (a.totalMoves||0)-(b.totalMoves||0); // bằng cúp thì ít bước hơn xếp trên
+    });
     renderAllRankings();
   },e=>{
     G.leaderboardData=[];
@@ -1029,7 +1049,11 @@ function renderRankingScreen(){
   renderPodium();renderRankingList();renderMyRank();
   // Update back button label based on origin
   const btn=document.getElementById('rankingBackBtn');
-  if(btn)btn.textContent=G.rankingFrom==='landing'?'← Quay lại':'← Quay lại chơi'
+  if(btn){
+    if(G.rankingFrom==='landing')btn.textContent='← Quay lại';
+    else if(G.rankingFrom==='result')btn.textContent='← Quay lại kết quả';
+    else btn.textContent='← Quay lại chơi';
+  }
 }
 function renderPodium(){
   const el=document.getElementById('podium');if(!el)return;
@@ -1048,6 +1072,7 @@ function renderPodium(){
           <span class="text-[10px] font-bold text-white truncate max-w-[60px] text-center leading-tight">${p.name||'Ẩn danh'}</span>
           <span class="text-[9px] text-white/80">🏆${p.cups||0}</span>
         </div>
+        <span class="text-[8px] text-white/60">🚶 ${p.totalMoves||0} bước</span>
       </div>
     </div>`
   }).join('')
@@ -1061,6 +1086,7 @@ function renderRankingList(){
     return `<div class="flex items-center gap-2 ${isMe?'bg-yellow-400/10 border border-yellow-400/30 rounded-lg':'border-b border-gray-800'} px-3 py-2">
       <span class="w-7 text-center text-xs font-bold ${isMe?'text-yellow-400':i<3?'':'text-gray-500'}">${medal}</span>
       <span class="flex-1 text-sm ${isMe?'text-yellow-300 font-bold':'text-gray-300'}">${p.name||'Ẩn danh'}</span>
+      <span class="text-[10px] text-gray-500 mr-1">🚶${p.totalMoves||0}</span>
       <span class="text-xs font-bold ${isMe?'text-yellow-300':'text-yellow-400'}">🏆 ${p.cups||0}</span>
     </div>`
   }).join('')
@@ -1068,7 +1094,7 @@ function renderRankingList(){
 function renderMyRank(){
   const el=document.getElementById('rankingMyRow');if(!el)return;
   const idx=G.leaderboardData.findIndex(p=>p.playerId===G.myPlayerId);
-  if(idx>=0)el.textContent=`Hạng của bạn: #${idx+1} trong số ${G.leaderboardData.length} người chơi — 🏆 ${G.cups} cúp`;
+  if(idx>=0)el.textContent=`Hạng của bạn: #${idx+1} trong số ${G.leaderboardData.length} người chơi — 🏆 ${G.cups} cúp • 🚶 ${G.totalMoves} bước`;
   else el.textContent=`Bạn hiện chưa có trong bảng xếp hạng. Chơi để leo lên!`
 }
 function updateMiniRank(){
@@ -1130,10 +1156,18 @@ function openRankingFromLanding(){
   showScreen('ranking-screen');
 }
 
+function openRankingFromResult(){
+  G.rankingFrom='result';
+  showScreen('ranking-screen');
+}
+
 function backFromRanking(){
   if(G.rankingFrom==='landing'){
     G.rankingFrom='';
     showScreen('landing-screen');
+  }else if(G.rankingFrom==='result'){
+    G.rankingFrom='';
+    showScreen('result-screen');
   }else{
     showScreen('player-screen');
   }
@@ -1181,12 +1215,12 @@ function submitPlayName(){
   // Query Firebase for matching name
   DB_PLAYERS.once('value').then(async snap=>{
     const data=snap.val();
-    const normalizedName=name.toLowerCase().trim();
+    const normalizedName=name.trim();
     let existingKey=null,existingData=null;
     
     if(data){
       existingKey=Object.keys(data).find(k=>
-        data[k].name && data[k].name.toLowerCase().trim()===normalizedName
+        data[k].name && data[k].name.trim()===normalizedName
       );
       if(existingKey)existingData=data[existingKey];
     }
@@ -1215,6 +1249,7 @@ function submitPlayName(){
       G.myPlayerId=existingData.playerId;
       G.cups=existingData.cups||0;
       G.fiftyFiftyCount=existingData.fiftyFiftyCount||0;
+      G.totalMoves=existingData.totalMoves||0;
       
       saveIdentity();
       setPlayerPresence(true);
@@ -1290,6 +1325,7 @@ function init(){
         G.myPlayerName=d.name||G.myPlayerName;
         G.cups=d.cups||0;
         G.fiftyFiftyCount=d.fiftyFiftyCount||0;
+        G.totalMoves=d.totalMoves||0;
         saveIdentity();
         
         // Go directly to game
@@ -1316,6 +1352,7 @@ async function createNewPlayer(name,password){
   G.myPlayerId=pid();
   G.cups=0;
   G.fiftyFiftyCount=0;
+  G.totalMoves=0;
   
   saveIdentity();
   
@@ -1381,6 +1418,7 @@ function doConfirmedRename(){
   G.myPlayerName='';
   G.cups=0;
   G.fiftyFiftyCount=0;
+  G.totalMoves=0;
   
   // Close any open modals
   closePlayerModal();
